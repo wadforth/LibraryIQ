@@ -62,24 +62,22 @@ return {
         {
             -- this find segment dictates the content you are able to edit. it essentially casts a net over a portion of the file content
             -- and tells Millennium you'll be editing it. This helps with optimization, and preventing Millennium from selecting content you didn't me to select.
-            -- This search query is incredibly fast. To keep it that way, some advanced regex selectors will not work.
-            -- Make sure your regex is "hyperscan" compatible.
-            find = [["#Menu_Account"\)\s*:\s*\w+\.createElement\("div",\s*\{[^}]*className:\s*\w+\(\)\.SteamButton[^}]*\},\s*\w+\.createElement\(\w+\.SteamLogo]],
+            -- Uses RE2 regex syntax matched against file content.
+            find = [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
 
             -- Tell Millennium to only target files starting with "chunk" as this is the file we are concerned with.
             -- This helps Millennium optimize your selector, and prevent accidentally patching files you didn't mean to.
             file = [[chunk~[0-9a-f]+\.js]],
 
-            -- All transforms are handled with PCRE2, not hyperscan like the "find" query.
-            -- These names aren't particularly important, but note their feature sets aren't the exact same.
+            -- All transforms are handled with RE2 regex.
             transforms = {
                 {
-                    -- Let Millennium know we want to replace this content
-                    match = [[createElement\(\w+\.SteamLogo]],
+                    -- Capture the jsx runtime fn name (\1) so the replace stays correct even if it's minified differently.
+                    match = [[\(0,(\w+\.jsx)\)\(\w+\.SteamLogo]],
                     -- #{{self}} is a macro that denotes your plugins frontend instance.
                     -- hookedSettingsIcon() will be called on your frontend now.
                     -- Make sure to "Millennium.exposeObj({ hookedSettingsIcon });" first, otherwise the function will be private by default.
-                    replace = [[createElement(#{{self}}?.hookedSettingsIcon?.().SteamButton]], -- ALWAYS null safe you calls. The frontend may not be ready when this code runs.
+                    replace = [[(0,\1)(#{{self}}?.hookedSettingsIcon?.().SteamButton||(()=>null)]], -- fallback to no-op when plugin isn't ready yet to avoid React error #130
                 }
                 -- this is a list, you can add more elements
             }
