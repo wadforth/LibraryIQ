@@ -1,7 +1,6 @@
 ## Plugin Template
 
-A plugin template for Millennium providing a basic boilerplate to help get started. You'll need a decent understanding in python, and typescript (superset of javascript)
-<br>
+A plugin template for Millennium providing a basic boilerplate to help get started.
 
 ## Prerequisites
 
@@ -9,29 +8,22 @@ A plugin template for Millennium providing a basic boilerplate to help get start
 
 ## Setting up
 
-```ps1
-git clone https://github.com/SteamClientHomebrew/PluginTemplate
-cd PluginTemplate
+```bash
+# Clone the repository somewhere
+$ git clone https://github.com/SteamClientHomebrew/PluginTemplate
+
+# Enter the repository
+$ cd PluginTemplate
 ```
 
 ## Building
 
+```bash
+# Install frontend npm modules
+$ bun install
+
+# Build the plugins frontend
+$ bun run build
 ```
-pnpm run dev
-```
 
-Then ensure your plugin template is in your plugins folder.
-`%MILLENNIUM_PATH%/plugins/plugin_template`, and select it from the "Plugins" tab within Steam.
-
-If you wish to develop your plugin outside of `%MILLENNIUM_PATH%/plugins`, you can create a symbolic link from your development path to the plugins path
-
-#### Note:
-
-**MILLENNIUM_PATH** =
-
-- Steam Path (ex: `C:\Program Files (x86)\Steam`) (Windows)
-- `~/.local/share/millennium` (Unix)
-
-## Next Steps
-
-https://docs.steambrew.app/developers/plugins/learn
+Then ensure your plugin template is in your plugins folder. Millennium also accepts symbolic-linked plugins from external directories. 
