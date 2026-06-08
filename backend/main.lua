@@ -3,7 +3,7 @@ local millennium = require("millennium")
 
 function test_frontend_message_callback(message, status, count)
     logger:info("test_frontend_message_callback called")
-    logger:info("Received args: " .. table.concat({message, tostring(status), tostring(count)}, ", "))
+    logger:info("Received args: " .. table.concat({ message, tostring(status), tostring(count) }, ", "))
 
     return true
 end
@@ -45,7 +45,7 @@ end
 -- Called when the Steam UI has fully loaded.
 local function on_frontend_loaded()
     logger:info("Frontend loaded")
-    local result = millennium.call_frontend_method("classname.method", { 18, "USA", false })
+    local result = millennium.call_frontend_method("SomeClass.method", { 18, "USA", false })
     logger:info(result)
 end
 
@@ -63,7 +63,8 @@ return {
             -- this find segment dictates the content you are able to edit. it essentially casts a net over a portion of the file content
             -- and tells Millennium you'll be editing it. This helps with optimization, and preventing Millennium from selecting content you didn't me to select.
             -- Uses RE2 regex syntax matched against file content.
-            find = [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
+            find =
+            [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
 
             -- Tell Millennium to only target files starting with "chunk" as this is the file we are concerned with.
             -- This helps Millennium optimize your selector, and prevent accidentally patching files you didn't mean to.
