@@ -1,5 +1,5 @@
 node_modules/
 dist/
-.millennium/Dist/
-.DS_Store
+.millennium/
 *.log
+steamui-*.txt
