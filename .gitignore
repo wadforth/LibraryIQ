@@ -1,3 +1,5 @@
 node_modules/
-.millennium/
-pnpm-lock.yaml
+dist/
+.millennium/Dist/
+.DS_Store
+*.log

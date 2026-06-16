@@ -1,88 +1,151 @@
 local logger = require("logger")
 local millennium = require("millennium")
+local http = require("http")
+local json = require("json")
 
-function test_frontend_message_callback(message, status, count)
-    logger:info("test_frontend_message_callback called")
-    logger:info("Received args: " .. table.concat({ message, tostring(status), tostring(count) }, ", "))
+local cache = {}
 
-    return true
+local function encode_response(payload)
+    local ok, encoded = pcall(json.encode, payload)
+
+    if ok then
+        return encoded
+    end
+
+    return '{"ok":false,"error":"failed_to_encode_response"}'
+end
+
+local function build_error(error_code, detail)
+    return encode_response({
+        ok = false,
+        error = error_code,
+        detail = detail or ""
+    })
+end
+
+local function normalise_rating(appid, data)
+    local summary = data.query_summary or {}
+
+    local total_positive = tonumber(summary.total_positive) or 0
+    local total_negative = tonumber(summary.total_negative) or 0
+    local total_reviews = tonumber(summary.total_reviews) or 0
+
+    local positive_percent = nil
+
+    if total_reviews > 0 then
+        positive_percent = math.floor((total_positive / total_reviews) * 100 + 0.5)
+    end
+
+    return {
+        ok = true,
+        appid = tostring(appid),
+        review_score = summary.review_score,
+        review_score_desc = summary.review_score_desc or "No rating",
+        total_positive = total_positive,
+        total_negative = total_negative,
+        total_reviews = total_reviews,
+        positive_percent = positive_percent,
+        updated_at = os.time()
+    }
+end
+
+function get_steam_rating(params)
+    local appid = params and params.appid
+
+    if appid == nil or tostring(appid):match("^%d+$") == nil then
+        return build_error("invalid_appid", "AppID must be numeric")
+    end
+
+    appid = tostring(appid)
+
+    local cached = cache[appid]
+    local now = os.time()
+
+    if cached ~= nil and cached.expires_at > now then
+        return cached.body
+    end
+
+    local url = "https://store.steampowered.com/appreviews/" ..
+        appid ..
+        "?json=1&language=all&purchase_type=all&num_per_page=0"
+
+    logger:info("Fetching Steam rating for AppID " .. appid)
+
+    local res, err = http.get(url, {
+        headers = {
+            ["Accept"] = "application/json"
+        },
+        timeout = 10,
+        user_agent = "SteamRatings-Millennium/0.1.0"
+    })
+
+    if not res then
+        logger:error("Steam Ratings request failed: " .. tostring(err))
+        return build_error("request_failed", tostring(err))
+    end
+
+    logger:info("Steam Ratings HTTP status for " .. appid .. ": " .. tostring(res.status))
+
+    if res.status < 200 or res.status >= 300 then
+        logger:error("Steam Ratings request returned HTTP " .. tostring(res.status))
+        return build_error("bad_http_status", tostring(res.status))
+    end
+
+    local ok, data = pcall(json.decode, res.body)
+
+    if not ok or data == nil then
+        logger:error("Steam Ratings invalid JSON for " .. appid)
+        return build_error("invalid_json", "Could not parse Steam response")
+    end
+
+    local payload = normalise_rating(appid, data)
+    local body = encode_response(payload)
+
+    cache[appid] = {
+        expires_at = now + 86400,
+        body = body
+    }
+
+    return body
+end
+
+function test_rating()
+    return get_steam_rating({
+        appid = "730"
+    })
 end
 
 local function on_load()
-    logger:info("Comparing millennium version: " .. millennium.version())
-
-    -- We are running a Millennium version > 2.29.3
-    local target_version = "2.29.3"
-    if millennium.cmp_version(millennium.version(), target_version) == 1 then
-        logger:info("Running Millennium > " .. target_version)
-    end
-
-    logger:info("Example plugin loaded with Millennium version " .. millennium.version())
-
-    -- Set a default greeting if one doesn't exist yet
-    local greeting = millennium.config.get("greeting")
-    if greeting == nil then
-        millennium.config.set("greeting", "Hello from Lua!")
-        logger:info("Set default greeting")
-    else
-        logger:info("Current greeting: " .. tostring(greeting))
-    end
-
-    -- Listen for config changes (from frontend, MEP, or anywhere)
-    millennium.config.on_change(function(key, value)
-        logger:info("Config changed: " .. key .. " = " .. tostring(value))
-    end)
-
+    logger:info("Steam Ratings backend loaded")
     millennium.ready()
 end
 
--- Called when your plugin is unloaded. This happens when the plugin is disabled or Steam is shutting down.
--- NOTE: If Steam crashes or is force closed by task manager, this function may not be called -- so don't rely on it for critical cleanup.
 local function on_unload()
-    logger:info("Plugin unloaded")
+    logger:info("Steam Ratings backend unloaded")
 end
 
--- Called when the Steam UI has fully loaded.
 local function on_frontend_loaded()
-    logger:info("Frontend loaded")
-    local result = millennium.call_frontend_method("SomeClass.method", { 18, "USA", false })
-    logger:info(result)
+    logger:info("Steam Ratings frontend loaded")
 end
 
 return {
-    on_frontend_loaded = on_frontend_loaded,
     on_load = on_load,
     on_unload = on_unload,
+    on_frontend_loaded = on_frontend_loaded,
 
-    -- patches let you directly override content from steam's js files as if they served with it.
-    -- effectively, this means you can trampoline, hook, block, or entirely change the functionality of steam's js files.
-    -- If you check the network tab on the chrome inspector, you'll see this file has directly served with this patch inside of it,
-    -- Millennium did all the hard lifting :)
+    get_steam_rating = get_steam_rating,
+    test_rating = test_rating,
+
     patches = {
         {
-            -- this find segment dictates the content you are able to edit. it essentially casts a net over a portion of the file content
-            -- and tells Millennium you'll be editing it. This helps with optimization, and preventing Millennium from selecting content you didn't me to select.
-            -- Uses RE2 regex syntax matched against file content.
-            find =
-            [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
-
-            -- Tell Millennium to only target files starting with "chunk" as this is the file we are concerned with.
-            -- This helps Millennium optimize your selector, and prevent accidentally patching files you didn't mean to.
+            find = [["#Menu_Account"\):\(0,\w+\.jsxs\)\("div",\{className:\w+\(\)\.SteamButton,children:\[\(0,\w+\.jsx\)\(\w+\.SteamLogo]],
             file = [[chunk~[0-9a-f]+\.js]],
-
-            -- All transforms are handled with RE2 regex.
             transforms = {
                 {
-                    -- Capture the jsx runtime fn name (\1) so the replace stays correct even if it's minified differently.
                     match = [[\(0,(\w+\.jsx)\)\(\w+\.SteamLogo]],
-                    -- #{{self}} is a macro that denotes your plugins frontend instance.
-                    -- hookedSettingsIcon() will be called on your frontend now.
-                    -- Make sure to "Millennium.exposeObj({ hookedSettingsIcon });" first, otherwise the function will be private by default.
-                    replace = [[(0,\1)(#{{self}}?.hookedSettingsIcon?.().SteamButton||(()=>null)]], -- fallback to no-op when plugin isn't ready yet to avoid React error #130
+                    replace = [[(0,\1)(#{{self}}?.steamRatingsLibrary?.().SteamRatingsLibraryInjector||(()=>null)]]
                 }
-                -- this is a list, you can add more elements
             }
         }
-        -- this is a list, you can add more elements
     }
 }
