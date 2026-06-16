@@ -1,4 +1,8 @@
 {
+  "name": "library-iq",
+  "version": "0.1.0",
+  "description": "Enhances the Steam Library with ratings, metadata, sorting, and quality-of-life tools.",
+  "main": "./frontend/index.tsx",
   "scripts": {
     "dev": "millennium-ttc --build dev",
     "build": "millennium-ttc --build prod"
@@ -10,10 +14,5 @@
     "@steambrew/webkit": "^5.8.4",
     "@types/react": "19.1.1",
     "@types/react-dom": "19.1.1"
-  },
-{
-  "name": "library-iq",
-  "version": "0.1.0",
-  "description": "Enhances the Steam Library with ratings, metadata, sorting, and quality-of-life tools."
-}
+  }
 }
