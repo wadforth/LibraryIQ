@@ -26,8 +26,6 @@ It is designed to feel like a native Steam Library enhancement rather than a sep
 
 ## Screenshots
 
-Add screenshots or short GIFs here when they are ready. Suggested image paths are included so the README can be updated quickly later.
-
 **Library Sidebar Badges**
 
 <img width="255" height="355" alt="image" src="https://github.com/user-attachments/assets/3073bf3b-bbc5-4954-8047-9ebd658cc695" />
