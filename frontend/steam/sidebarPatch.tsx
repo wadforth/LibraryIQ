@@ -206,6 +206,8 @@ export function installSidebarRatingPatch(): string {
   const originalJsx = found.runtime.jsx as JsxFn;
   const originalJsxs = found.runtime.jsxs as JsxFn;
 
+  // Steam's Library UI is rendered through this bundled JSX runtime, so
+  // patching jsx/jsxs lets LibraryIQ augment rows without direct DOM injection.
   found.runtime.jsx = function patchedJsx(
     type: unknown,
     props: unknown,
@@ -259,10 +261,6 @@ export function installSidebarRatingPatch(): string {
   };
 
   installed = true;
-
-  console.log("[LibraryIQ] Sidebar rating patch installed", {
-    jsxModule: found.moduleId
-  });
 
   return `installed via JSX module ${found.moduleId}`;
 }

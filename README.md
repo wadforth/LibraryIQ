@@ -4,6 +4,12 @@ LibraryIQ is a [Millennium](https://github.com/SteamClientHomebrew/Millennium) p
 
 It is designed to feel like a native Steam Library enhancement rather than a separate overlay.
 
+<p align="center">
+  <a href="https://buymeacoffee.com/kierxn" target="_blank" rel="noopener noreferrer">
+    <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50">
+  </a>
+</p>
+
 ## Features
 
 - Steam review percentage badges in the Library sidebar.
@@ -17,6 +23,40 @@ It is designed to feel like a native Steam Library enhancement rather than a sep
 - Badge styles: glass, solid, outline, and Steam neutral.
 - Badge shapes: pill, squircle, rounded rectangle, and square.
 - Optional badge click actions for opening Steam reviews or the store page.
+
+## Screenshots
+
+Add screenshots or short GIFs here when they are ready. Suggested image paths are included so the README can be updated quickly later.
+
+**Library Sidebar Badges**
+
+Placeholder: add an image showing LibraryIQ rating badges next to games in the Steam Library sidebar.
+
+Suggested path: `docs/images/sidebar-badges.png`
+
+**Quick Filter Collapsed**
+
+Placeholder: add an image showing the collapsed `IQ` quick filter button in the Library.
+
+Suggested path: `docs/images/quick-filter-collapsed.png`
+
+**Quick Filter Expanded**
+
+Placeholder: add an image showing the expanded quick filter controls with minimum rating and sort buttons.
+
+Suggested path: `docs/images/quick-filter-expanded.png`
+
+**Settings Panel**
+
+Placeholder: add an image showing the Millennium settings panel with badge style, shape, source, and quick filter position controls.
+
+Suggested path: `docs/images/settings-panel.png`
+
+**Sorting And Filtering**
+
+Placeholder: add a before/after image or GIF showing Library sorting/filtering by Steam review score.
+
+Suggested path: `docs/images/sorting-filtering.gif`
 
 ## How It Works
 
@@ -109,6 +149,7 @@ frontend/
     steamAppStore.ts
     webpackRuntime.ts
   styles/
+    badgeVisuals.ts
     sidebarStyles.ts
   steam/
     sidebarPatch.tsx

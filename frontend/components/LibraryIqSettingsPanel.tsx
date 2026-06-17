@@ -1,8 +1,15 @@
 import type { CSSProperties } from "react";
 import {
   DEFAULT_SETTINGS,
+  QUICK_FILTER_POSITION_LIMITS,
   useLibraryIqSettings
 } from "../hooks/useLibraryIqSettings";
+import {
+  getBadgeBorderRadius,
+  getBadgeDisplayLabel,
+  getBadgeVisualStyle,
+  getBadgeWidth
+} from "../styles/badgeVisuals";
 import type {
   BadgeClickAction,
   BadgeDisplayMode,
@@ -93,7 +100,8 @@ function SelectBox<T extends string>({
         border: "1px solid rgba(255,255,255,0.12)",
         fontSize: "12px",
         fontWeight: 750,
-        outline: "none"
+        outline: "none",
+        boxSizing: "border-box"
       }}
     >
       {options.map((option) => (
@@ -162,64 +170,6 @@ function SliderControl({
   );
 }
 
-function getPreviewLabel(displayMode: BadgeDisplayMode) {
-  if (displayMode === "compact") {
-    return "82";
-  }
-
-  if (displayMode === "label") {
-    return "V+";
-  }
-
-  return "82%";
-}
-
-function getPreviewWidth(displayMode: BadgeDisplayMode) {
-  if (displayMode === "compact") {
-    return "32px";
-  }
-
-  if (displayMode === "label") {
-    return "34px";
-  }
-
-  return "40px";
-}
-
-function getPreviewBorderRadius(badgeShape: BadgeShape) {
-  if (badgeShape === "pill") {
-    return "999px";
-  }
-
-  if (badgeShape === "squircle") {
-    return "9px";
-  }
-
-  if (badgeShape === "rounded") {
-    return "5px";
-  }
-
-  return "2px";
-}
-
-function getPreviewColours(colourMode: ColourMode, pillStyle: BadgePillStyle) {
-  if (colourMode === "neutral" || pillStyle === "steam") {
-    return {
-      background: "rgba(72, 86, 103, 0.58)",
-      border: "rgba(166, 185, 205, 0.32)",
-      color: "rgba(236, 242, 248, 0.98)",
-      solid: "rgba(67, 92, 121, 0.95)"
-    };
-  }
-
-  return {
-    background: "rgba(50, 116, 73, 0.62)",
-    border: "rgba(121, 207, 145, 0.42)",
-    color: "rgba(232, 255, 237, 0.98)",
-    solid: "rgba(46, 132, 74, 0.96)"
-  };
-}
-
 function getPreviewBadgeStyle({
   colourMode,
   displayMode,
@@ -231,10 +181,9 @@ function getPreviewBadgeStyle({
   pillStyle: BadgePillStyle;
   badgeShape: BadgeShape;
 }): CSSProperties {
-  const colours = getPreviewColours(colourMode, pillStyle);
-  const width = getPreviewWidth(displayMode);
+  const width = getBadgeWidth(displayMode);
 
-  const base: CSSProperties = {
+  return {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -242,49 +191,17 @@ function getPreviewBadgeStyle({
     minWidth: width,
     height: "16px",
     padding: "0 5px",
-    borderRadius: getPreviewBorderRadius(badgeShape),
+    borderRadius: getBadgeBorderRadius(badgeShape),
     boxSizing: "border-box",
     fontFamily: "Arial, Helvetica, sans-serif",
     fontSize: "10px",
     fontWeight: 850,
     lineHeight: "16px",
-    color: colours.color,
-    border: `1px solid ${colours.border}`,
-    background: colours.background,
-    boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 2px rgba(0,0,0,0.24)"
+    ...getBadgeVisualStyle(82, {
+      badgePillStyle: pillStyle,
+      colourMode
+    })
   };
-
-  if (pillStyle === "solid") {
-    return {
-      ...base,
-      background: colours.solid,
-      border: "1px solid rgba(255,255,255,0.12)",
-      boxShadow: "0 1px 2px rgba(0,0,0,0.28)"
-    };
-  }
-
-  if (pillStyle === "outline") {
-    return {
-      ...base,
-      background: "rgba(0,0,0,0.12)",
-      border: `1px solid ${colours.border}`,
-      boxShadow: "none"
-    };
-  }
-
-  if (pillStyle === "steam") {
-    return {
-      ...base,
-      background:
-        "linear-gradient(180deg, rgba(79,96,116,0.74), rgba(45,57,72,0.74))",
-      border: "1px solid rgba(180,196,216,0.20)",
-      boxShadow:
-        "inset 0 1px 0 rgba(255,255,255,0.07), 0 1px 2px rgba(0,0,0,0.22)"
-    };
-  }
-
-  return base;
 }
 
 function BadgePreview({
@@ -309,7 +226,7 @@ function BadgePreview({
         badgeShape
       })}
     >
-      {getPreviewLabel(displayMode)}
+      {getBadgeDisplayLabel(displayMode)}
     </span>
   );
 
@@ -400,6 +317,26 @@ function StatusPill({
   );
 }
 
+function getBadgePillStyleLabel(pillStyle: BadgePillStyle) {
+  if (pillStyle === "glass") {
+    return "Glass";
+  }
+
+  if (pillStyle === "solid") {
+    return "Solid";
+  }
+
+  if (pillStyle === "outline") {
+    return "Outline";
+  }
+
+  if (pillStyle === "steam") {
+    return "Steam neutral";
+  }
+
+  return "Glass";
+}
+
 export function LibraryIqSettingsPanel() {
   const [settings, setSettings] = useLibraryIqSettings();
 
@@ -477,10 +414,11 @@ export function LibraryIqSettingsPanel() {
       style={{
         padding: "18px",
         width: "100%",
-        maxWidth: "390px",
+        maxWidth: "380px",
         color: "#dbe5f2",
         fontFamily: "Arial, Helvetica, sans-serif",
-        boxSizing: "border-box"
+        boxSizing: "border-box",
+        overflowWrap: "break-word"
       }}
     >
       <div
@@ -566,9 +504,13 @@ export function LibraryIqSettingsPanel() {
           <StatusPill label="Position" value={badgePositionLabel} />
           <StatusPill label="Minimum" value={minimumRatingLabel} />
           <StatusPill label="Sort" value={sortLabel} />
-          <StatusPill label="Badge click" value={badgeActionLabel} />
-          <StatusPill label="Badge mode" value={badgeModeLabel} />
-          <StatusPill label="Badge shape" value={badgeShapeLabel} />
+          <StatusPill label="Click action" value={badgeActionLabel} />
+          <StatusPill label="Display" value={badgeModeLabel} />
+          <StatusPill
+            label="Style"
+            value={getBadgePillStyleLabel(settings.badgePillStyle)}
+          />
+          <StatusPill label="Shape" value={badgeShapeLabel} />
         </div>
 
         <BadgePreview
@@ -723,7 +665,7 @@ export function LibraryIqSettingsPanel() {
         </SettingRow>
 
         <SettingRow
-          title="Pill design"
+          title="Badge style"
           description="Changes the visual style of the sidebar rating badge."
         >
           <SelectBox<BadgePillStyle>
@@ -791,8 +733,8 @@ export function LibraryIqSettingsPanel() {
         >
           <SliderControl
             value={settings.quickFilterCollapsedLeft}
-            min={0}
-            max={600}
+            min={QUICK_FILTER_POSITION_LIMITS.collapsedLeft.min}
+            max={QUICK_FILTER_POSITION_LIMITS.collapsedLeft.max}
             onChange={(value) => updateSetting("quickFilterCollapsedLeft", value)}
           />
         </SettingRow>
@@ -803,8 +745,8 @@ export function LibraryIqSettingsPanel() {
         >
           <SliderControl
             value={settings.quickFilterCollapsedTop}
-            min={40}
-            max={500}
+            min={QUICK_FILTER_POSITION_LIMITS.collapsedTop.min}
+            max={QUICK_FILTER_POSITION_LIMITS.collapsedTop.max}
             onChange={(value) => updateSetting("quickFilterCollapsedTop", value)}
           />
         </SettingRow>
@@ -815,8 +757,8 @@ export function LibraryIqSettingsPanel() {
         >
           <SliderControl
             value={settings.quickFilterPanelLeft}
-            min={0}
-            max={600}
+            min={QUICK_FILTER_POSITION_LIMITS.panelLeft.min}
+            max={QUICK_FILTER_POSITION_LIMITS.panelLeft.max}
             onChange={(value) => updateSetting("quickFilterPanelLeft", value)}
           />
         </SettingRow>
@@ -827,8 +769,8 @@ export function LibraryIqSettingsPanel() {
         >
           <SliderControl
             value={settings.quickFilterPanelTop}
-            min={40}
-            max={500}
+            min={QUICK_FILTER_POSITION_LIMITS.panelTop.min}
+            max={QUICK_FILTER_POSITION_LIMITS.panelTop.max}
             onChange={(value) => updateSetting("quickFilterPanelTop", value)}
           />
         </SettingRow>

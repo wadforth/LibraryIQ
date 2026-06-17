@@ -38,7 +38,10 @@ class QuickFilterErrorBoundary extends Component<
 function SteamRatingsLibraryInjector() {
   useEffect(() => {
     const status = installSidebarRatingPatch();
-    console.log("[LibraryIQ]", status);
+
+    if (!status.startsWith("installed") && status !== "already installed") {
+      console.warn("[LibraryIQ]", status);
+    }
   }, []);
 
   return (

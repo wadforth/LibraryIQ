@@ -9,14 +9,14 @@ import type { LibraryIqSettings, RatingSortMode } from "../types";
 
 const LIBRARY_CONTEXT_GRACE_MS = 5000;
 
-const minimumOptions: Array<{ label: string; value: number | null }> = [
+const minimumRatingOptions: Array<{ label: string; value: number | null }> = [
   { label: "Off", value: null },
   { label: "70+", value: 70 },
   { label: "80+", value: 80 },
   { label: "90+", value: 90 }
 ];
 
-const sortOptions: Array<{ label: string; value: RatingSortMode }> = [
+const ratingSortOptions: Array<{ label: string; value: RatingSortMode }> = [
   { label: "Off", value: "off" },
   { label: "High", value: "highestFirst" },
   { label: "Low", value: "lowestFirst" }
@@ -76,7 +76,7 @@ function isInSteamLibraryContext() {
   );
 }
 
-function buttonStyle(active: boolean): CSSProperties {
+function getQuickFilterButtonStyle(active: boolean): CSSProperties {
   return {
     padding: "5px 8px",
     borderRadius: "8px",
@@ -152,6 +152,8 @@ export function QuickFilterBar() {
       setIsLibraryContext(isInSteamLibraryContext());
     };
 
+    // Steam client navigation does not always update window.location, so the
+    // sidebar patch emits a Library-specific signal when real app rows render.
     const removeLibraryContextListener =
       addLibraryContextListener(updateLibraryContext);
 
@@ -337,7 +339,7 @@ export function QuickFilterBar() {
                 lineHeight: 1.1
               }}
             >
-              Quick Filter
+              Quick filter
             </div>
             <div
               style={{
@@ -365,7 +367,7 @@ export function QuickFilterBar() {
               setCollapsed(true);
             }}
             style={{
-              ...buttonStyle(false),
+              ...getQuickFilterButtonStyle(false),
               padding: "5px 7px"
             }}
             title="Collapse LibraryIQ quick filter"
@@ -377,7 +379,7 @@ export function QuickFilterBar() {
             type="button"
             onClick={clearFilters}
             style={{
-              ...buttonStyle(active),
+              ...getQuickFilterButtonStyle(active),
               padding: "5px 7px",
               opacity: active ? 1 : 0.45
             }}
@@ -402,7 +404,7 @@ export function QuickFilterBar() {
         </div>
 
         <div style={{ display: "flex", gap: "5px" }}>
-          {minimumOptions.map((option) => (
+          {minimumRatingOptions.map((option) => (
             <button
               key={option.label}
               type="button"
@@ -415,7 +417,9 @@ export function QuickFilterBar() {
                   option.value
                 );
               }}
-              style={buttonStyle(settings.minimumRating === option.value)}
+              style={getQuickFilterButtonStyle(
+                settings.minimumRating === option.value
+              )}
             >
               {option.label}
             </button>
@@ -438,7 +442,7 @@ export function QuickFilterBar() {
         </div>
 
         <div style={{ display: "flex", gap: "5px" }}>
-          {sortOptions.map((option) => (
+          {ratingSortOptions.map((option) => (
             <button
               key={option.value}
               type="button"
@@ -451,7 +455,9 @@ export function QuickFilterBar() {
                   option.value
                 );
               }}
-              style={buttonStyle(settings.ratingSortMode === option.value)}
+              style={getQuickFilterButtonStyle(
+                settings.ratingSortMode === option.value
+              )}
             >
               {option.label}
             </button>
