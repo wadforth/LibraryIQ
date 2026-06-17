@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useLibraryIqSettings } from "../hooks/useLibraryIqSettings";
 import {
   getAppIdFromProps,
@@ -8,10 +8,31 @@ import { findJsxRuntime, getWebpackRequire } from "../services/webpackRuntime";
 import { installSidebarStyles } from "../styles/sidebarStyles";
 import type { JsxFn } from "../types";
 import { SteamSidebarRatingBadge } from "../components/SteamSidebarRatingBadge";
+import { getBadgeWidth } from "../styles/badgeVisuals";
 import { markLibraryContextObserved } from "./libraryContext";
 import { patchLibraryListProps } from "./libraryListPatch";
 
 let installed = false;
+
+type PatchedJsxFn = JsxFn & {
+  __libraryIqPatched?: boolean;
+  __libraryIqOriginal?: JsxFn;
+};
+
+type IconRatingSlotStyle = CSSProperties & {
+  "--library-iq-icon-rating-width"?: string;
+  "--library-iq-icon-badge-gap"?: string;
+  "--library-iq-icon-rating-margin-right"?: string;
+  "--library-iq-badge-title-spacing"?: string;
+};
+
+function isLibraryIqPatched(value: unknown): value is PatchedJsxFn {
+  return Boolean(
+    value &&
+      typeof value === "function" &&
+      (value as PatchedJsxFn).__libraryIqPatched
+  );
+}
 
 function isSidebarVisibleWrapperProps(props: unknown): boolean {
   if (!props || typeof props !== "object") {
@@ -109,48 +130,66 @@ function LibraryIqIconRatingSlot({
   appid: string;
 }) {
   const [settings] = useLibraryIqSettings();
+  const iconWidth = 24;
+  const iconBadgeGap = 7;
 
   if (!settings.showRatings || settings.badgePosition === "afterTitle") {
     return (
       <span
         className="library-iq-icon-rating-wrap"
-        style={{
+        style={
+          {
+          "--library-iq-icon-rating-width": `${iconWidth}px`,
+          "--library-iq-icon-badge-gap": "0px",
+          "--library-iq-icon-rating-margin-right": "10px",
+          "--library-iq-badge-title-spacing": "0px",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "flex-start",
-          width: "24px",
-          minWidth: "24px",
-          maxWidth: "24px",
-          flex: "0 0 24px",
+          width: `${iconWidth}px`,
+          minWidth: `${iconWidth}px`,
+          maxWidth: `${iconWidth}px`,
+          flex: `0 0 ${iconWidth}px`,
           marginRight: "10px",
           boxSizing: "border-box",
           overflow: "visible",
           verticalAlign: "middle"
-        }}
+          } as IconRatingSlotStyle
+        }
       >
         {icon}
       </span>
     );
   }
 
+  const badgeWidth = getBadgeWidth(settings.badgeDisplayMode);
+  const wrapperWidth =
+    iconWidth + iconBadgeGap + badgeWidth + settings.badgeTitleSpacing;
+
   return (
     <span
       className="library-iq-icon-rating-wrap"
-      style={{
+      style={
+        {
+        "--library-iq-icon-rating-width": `${wrapperWidth}px`,
+        "--library-iq-icon-badge-gap": `${iconBadgeGap}px`,
+        "--library-iq-icon-rating-margin-right": "0px",
+        "--library-iq-badge-title-spacing": `${settings.badgeTitleSpacing}px`,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "flex-start",
-        width: "78px",
-        minWidth: "78px",
-        maxWidth: "78px",
-        flex: "0 0 78px",
-        gap: "7px",
-        marginRight: "10px",
-        paddingRight: "8px",
+        width: `${wrapperWidth}px`,
+        minWidth: `${wrapperWidth}px`,
+        maxWidth: `${wrapperWidth}px`,
+        flex: `0 0 ${wrapperWidth}px`,
+        gap: `${iconBadgeGap}px`,
+        marginRight: "0px",
+        paddingRight: `${settings.badgeTitleSpacing}px`,
         boxSizing: "border-box",
         overflow: "visible",
         verticalAlign: "middle"
-      }}
+        } as IconRatingSlotStyle
+      }
     >
       {icon}
       <SteamSidebarRatingBadge appid={appid} slot="betweenIconAndTitle" />
@@ -185,10 +224,6 @@ function maybeWrapSidebarIcon(
 }
 
 export function installSidebarRatingPatch(): string {
-  if (installed) {
-    return "already installed";
-  }
-
   installSidebarStyles();
 
   const req = getWebpackRequire();
@@ -203,64 +238,105 @@ export function installSidebarRatingPatch(): string {
     return "jsx runtime not found";
   }
 
+  const wasInstalled = installed;
   const originalJsx = found.runtime.jsx as JsxFn;
   const originalJsxs = found.runtime.jsxs as JsxFn;
 
+  if (isLibraryIqPatched(originalJsx) && isLibraryIqPatched(originalJsxs)) {
+    installed = true;
+    return "already installed";
+  }
+
+  const baseJsx = isLibraryIqPatched(originalJsx)
+    ? originalJsx.__libraryIqOriginal ?? originalJsx
+    : originalJsx;
+  const baseJsxs = isLibraryIqPatched(originalJsxs)
+    ? originalJsxs.__libraryIqOriginal ?? originalJsxs
+    : originalJsxs;
+
   // Steam's Library UI is rendered through this bundled JSX runtime, so
   // patching jsx/jsxs lets LibraryIQ augment rows without direct DOM injection.
-  found.runtime.jsx = function patchedJsx(
+  const patchedJsx = function patchedJsx(
     type: unknown,
     props: unknown,
     key?: unknown
   ) {
-    const listPatchedProps = patchLibraryListProps(props);
+    try {
+      const listPatchedProps = patchLibraryListProps(props);
 
-    const wrappedIcon = maybeWrapSidebarIcon(
-      originalJsx,
-      type,
-      listPatchedProps,
-      key
-    );
+      const wrappedIcon = maybeWrapSidebarIcon(
+        baseJsx,
+        type,
+        listPatchedProps,
+        key
+      );
 
-    if (wrappedIcon) {
-      return wrappedIcon;
+      if (wrappedIcon) {
+        return wrappedIcon;
+      }
+
+      const patchedProps = patchPropsForVisibleSidebarWrapper(
+        baseJsx,
+        listPatchedProps
+      );
+
+      return baseJsx(type, patchedProps, key);
+    } catch (error) {
+      console.error(
+        "[LibraryIQ] JSX patch failed; returning original element",
+        error
+      );
+      return baseJsx(type, props, key);
     }
+  } as PatchedJsxFn;
 
-    const patchedProps = patchPropsForVisibleSidebarWrapper(
-      originalJsx,
-      listPatchedProps
-    );
+  patchedJsx.__libraryIqPatched = true;
+  patchedJsx.__libraryIqOriginal = baseJsx;
 
-    return originalJsx(type, patchedProps, key);
-  };
+  found.runtime.jsx = patchedJsx;
 
-  found.runtime.jsxs = function patchedJsxs(
+  const patchedJsxs = function patchedJsxs(
     type: unknown,
     props: unknown,
     key?: unknown
   ) {
-    const listPatchedProps = patchLibraryListProps(props);
+    try {
+      const listPatchedProps = patchLibraryListProps(props);
 
-    const wrappedIcon = maybeWrapSidebarIcon(
-      originalJsx,
-      type,
-      listPatchedProps,
-      key
-    );
+      const wrappedIcon = maybeWrapSidebarIcon(
+        baseJsx,
+        type,
+        listPatchedProps,
+        key
+      );
 
-    if (wrappedIcon) {
-      return wrappedIcon;
+      if (wrappedIcon) {
+        return wrappedIcon;
+      }
+
+      const patchedProps = patchPropsForVisibleSidebarWrapper(
+        baseJsx,
+        listPatchedProps
+      );
+
+      return baseJsxs(type, patchedProps, key);
+    } catch (error) {
+      console.error(
+        "[LibraryIQ] JSXS patch failed; returning original element",
+        error
+      );
+      return baseJsxs(type, props, key);
     }
+  } as PatchedJsxFn;
 
-    const patchedProps = patchPropsForVisibleSidebarWrapper(
-      originalJsx,
-      listPatchedProps
-    );
+  patchedJsxs.__libraryIqPatched = true;
+  patchedJsxs.__libraryIqOriginal = baseJsxs;
 
-    return originalJsxs(type, patchedProps, key);
-  };
+  found.runtime.jsxs = patchedJsxs;
 
   installed = true;
 
-  return `installed via JSX module ${found.moduleId}`;
+  return wasInstalled
+    ? `reinstalled via JSX module ${found.moduleId}`
+    : `installed via JSX module ${found.moduleId}`;
 }

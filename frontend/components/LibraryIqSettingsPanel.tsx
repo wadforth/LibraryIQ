@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import {
+  BADGE_TITLE_SPACING_LIMITS,
   DEFAULT_SETTINGS,
   QUICK_FILTER_POSITION_LIMITS,
   useLibraryIqSettings
@@ -209,22 +210,30 @@ function BadgePreview({
   badgePosition,
   displayMode,
   pillStyle,
-  badgeShape
+  badgeShape,
+  badgeTitleSpacing
 }: {
   colourMode: ColourMode;
   badgePosition: BadgePosition;
   displayMode: BadgeDisplayMode;
   pillStyle: BadgePillStyle;
   badgeShape: BadgeShape;
+  badgeTitleSpacing: number;
 }) {
   const badge = (
     <span
-      style={getPreviewBadgeStyle({
-        colourMode,
-        displayMode,
-        pillStyle,
-        badgeShape
-      })}
+      style={{
+        ...getPreviewBadgeStyle({
+          colourMode,
+          displayMode,
+          pillStyle,
+          badgeShape
+        }),
+        marginRight:
+          badgePosition === "betweenIconAndTitle"
+            ? `${badgeTitleSpacing}px`
+            : 0
+      }}
     >
       {getBadgeDisplayLabel(displayMode)}
     </span>
@@ -235,7 +244,7 @@ function BadgePreview({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "9px",
+        gap: 0,
         padding: "12px",
         borderRadius: "12px",
         background: "rgba(7,13,22,0.32)",
@@ -249,6 +258,7 @@ function BadgePreview({
           minWidth: "24px",
           height: "24px",
           borderRadius: "5px",
+          marginRight: badgePosition === "betweenIconAndTitle" ? "7px" : "9px",
           background:
             "linear-gradient(135deg, rgba(82,125,170,0.9), rgba(30,45,64,0.9))",
           border: "1px solid rgba(255,255,255,0.12)"
@@ -265,7 +275,8 @@ function BadgePreview({
           whiteSpace: "nowrap",
           color: "rgba(225,234,246,0.88)",
           fontSize: "13px",
-          fontWeight: 650
+          fontWeight: 650,
+          marginRight: badgePosition === "afterTitle" ? "9px" : 0
         }}
       >
         Example Game
@@ -511,6 +522,10 @@ export function LibraryIqSettingsPanel() {
             value={getBadgePillStyleLabel(settings.badgePillStyle)}
           />
           <StatusPill label="Shape" value={badgeShapeLabel} />
+          <StatusPill
+            label="Spacing"
+            value={`${settings.badgeTitleSpacing}px`}
+          />
         </div>
 
         <BadgePreview
@@ -519,6 +534,7 @@ export function LibraryIqSettingsPanel() {
           displayMode={settings.badgeDisplayMode}
           pillStyle={settings.badgePillStyle}
           badgeShape={settings.badgeShape}
+          badgeTitleSpacing={settings.badgeTitleSpacing}
         />
 
         <button
@@ -607,6 +623,18 @@ export function LibraryIqSettingsPanel() {
                 label: "After title"
               }
             ]}
+          />
+        </SettingRow>
+
+        <SettingRow
+          title="Badge/title spacing"
+          description="Controls the gap between the rating badge and the game title. Capped at 20px."
+        >
+          <SliderControl
+            value={settings.badgeTitleSpacing}
+            min={BADGE_TITLE_SPACING_LIMITS.min}
+            max={BADGE_TITLE_SPACING_LIMITS.max}
+            onChange={(value) => updateSetting("badgeTitleSpacing", value)}
           />
         </SettingRow>
 

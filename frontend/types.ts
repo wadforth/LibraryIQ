@@ -40,6 +40,7 @@ export type LibraryIqSettings = {
   badgeDisplayMode: BadgeDisplayMode;
   badgePillStyle: BadgePillStyle;
   badgeShape: BadgeShape;
+  badgeTitleSpacing: number;
 };
 
 export type SteamRatingResponse = {

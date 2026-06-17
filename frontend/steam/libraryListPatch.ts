@@ -75,6 +75,7 @@ type PreservedClickHandler = ((
 };
 
 let planCache = new WeakMap<RowRenderer, CachedPlan>();
+const libraryListProbeCache = new WeakMap<RowRenderer, boolean>();
 const registeredVirtualLists = new Set<VirtualListInstance>();
 
 function isSortOrFilterEnabled(settings: LibraryIqSettings): boolean {
@@ -442,6 +443,96 @@ function getAppIdFromPossibleApp(value: unknown, depth = 0): string | null {
   );
 }
 
+function hasObjectKey(value: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function isConfirmedLibraryAppRowProps(
+  props: Record<string, unknown>
+): boolean {
+  if (!hasObjectKey(props, "item")) {
+    return false;
+  }
+
+  const appid = getAppIdFromPossibleApp(props.item);
+
+  if (!appid || !props.item || typeof props.item !== "object") {
+    return false;
+  }
+
+  const item = props.item as Record<string, unknown>;
+  const hasLibraryAppShape =
+    (hasObjectKey(item, "appid") ||
+      hasObjectKey(item, "appId") ||
+      hasObjectKey(item, "unAppID") ||
+      hasObjectKey(item, "nAppID")) &&
+    (hasObjectKey(item, "display_name") ||
+      hasObjectKey(item, "sort_as") ||
+      hasObjectKey(item, "name") ||
+      hasObjectKey(item, "m_strName"));
+
+  const hasLibrarySelectionProps =
+    hasObjectKey(props, "strCollectionId") ||
+    hasObjectKey(props, "fnSelectAppsInRange") ||
+    hasObjectKey(props, "includeMultiSelect");
+
+  return hasLibraryAppShape || hasLibrarySelectionProps;
+}
+
+function getProbeIndexes(rowCount: number): number[] {
+  if (rowCount <= 0) {
+    return [];
+  }
+
+  if (rowCount <= 80) {
+    return Array.from({ length: rowCount }, (_, index) => index);
+  }
+
+  const indexes = new Set<number>();
+
+  for (let index = 0; index < Math.min(30, rowCount); index++) {
+    indexes.add(index);
+  }
+
+  for (let index = 0; index < 50; index++) {
+    indexes.add(Math.floor(((rowCount - 1) * index) / 49));
+  }
+
+  return Array.from(indexes).sort((a, b) => a - b);
+}
+
+function isConfirmedLibraryList(
+  rowRenderer: RowRenderer,
+  rowCount: number
+): boolean {
+  const cached = libraryListProbeCache.get(rowRenderer);
+
+  if (typeof cached === "boolean") {
+    return cached;
+  }
+
+  if (!getAppStoreMap()) {
+    return false;
+  }
+
+  for (const index of getProbeIndexes(rowCount)) {
+    try {
+      const rendered = rowRenderer(makeSyntheticRowArgs(index));
+      const appProps = findAppRowProps(rendered);
+
+      if (appProps) {
+        libraryListProbeCache.set(rowRenderer, true);
+        return true;
+      }
+    } catch {
+      // Non-Library virtual lists can require renderer-specific context.
+    }
+  }
+
+  libraryListProbeCache.set(rowRenderer, false);
+  return false;
+}
+
 function getRatingForSorting(
   appid: string,
   settings: LibraryIqSettings
@@ -545,12 +636,8 @@ function findAppRowProps(
 
   const props = value.props;
 
-  if ("item" in props) {
-    const appid = getAppIdFromPossibleApp(props.item);
-
-    if (appid) {
-      return props;
-    }
+  if (isConfirmedLibraryAppRowProps(props)) {
+    return props;
   }
 
   if ("children" in props) {
@@ -938,6 +1025,10 @@ export function patchLibraryListProps(props: unknown): unknown {
   const originalRowRenderer = incomingRowRenderer;
   const originalRowCount = incomingRowCount;
 
+  if (!isConfirmedLibraryList(originalRowRenderer, originalRowCount)) {
+    return props;
+  }
+
   const settingsAtRender = readSettings();
   const planAtRender = isSortOrFilterEnabled(settingsAtRender)
     ? getPlan(originalRowRenderer, originalRowCount, settingsAtRender)
@@ -947,33 +1038,45 @@ export function patchLibraryListProps(props: unknown): unknown {
     this: unknown,
     rowArgs: unknown
   ) {
-    const liveSettings = readSettings();
+    try {
+      const liveSettings = readSettings();
 
-    if (!isSortOrFilterEnabled(liveSettings)) {
-      return originalRowRenderer.call(this, rowArgs);
-    }
+      if (!isSortOrFilterEnabled(liveSettings)) {
+        return originalRowRenderer.call(this, rowArgs);
+      }
 
-    const livePlan = getPlan(originalRowRenderer, originalRowCount, liveSettings);
-    const virtualIndex = getVirtualIndex(rowArgs);
-    const mappedRow = livePlan.displayRows[virtualIndex];
+      const livePlan = getPlan(
+        originalRowRenderer,
+        originalRowCount,
+        liveSettings
+      );
+      const virtualIndex = getVirtualIndex(rowArgs);
+      const mappedRow = livePlan.displayRows[virtualIndex];
 
-    if (!mappedRow) {
-      return null;
-    }
+      if (!mappedRow) {
+        return null;
+      }
 
-    if (mappedRow.kind === "nonApp") {
-      return renderNonAppRow(
+      if (mappedRow.kind === "nonApp") {
+        return renderNonAppRow(
+          originalRowRenderer.bind(this) as RowRenderer,
+          rowArgs,
+          mappedRow.originalIndex
+        );
+      }
+
+      return renderAppRowWithTargetGame(
         originalRowRenderer.bind(this) as RowRenderer,
         rowArgs,
-        mappedRow.originalIndex
+        mappedRow
       );
+    } catch (error) {
+      console.error(
+        "[LibraryIQ] Library row patch failed; returning original row",
+        error
+      );
+      return originalRowRenderer.call(this, rowArgs);
     }
-
-    return renderAppRowWithTargetGame(
-      originalRowRenderer.bind(this) as RowRenderer,
-      rowArgs,
-      mappedRow
-    );
   } as RowRenderer;
 
   patchedRowRenderer.__libraryIqItemSwapPatched = true;

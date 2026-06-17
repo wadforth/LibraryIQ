@@ -37,11 +37,42 @@ class QuickFilterErrorBoundary extends Component<
 
 function SteamRatingsLibraryInjector() {
   useEffect(() => {
-    const status = installSidebarRatingPatch();
+    const ensurePatchInstalled = () => {
+      const status = installSidebarRatingPatch();
 
-    if (!status.startsWith("installed") && status !== "already installed") {
-      console.warn("[LibraryIQ]", status);
-    }
+      if (status.startsWith("reinstalled")) {
+        console.info("[LibraryIQ]", status);
+      }
+
+      if (
+        !status.startsWith("installed") &&
+        !status.startsWith("reinstalled") &&
+        status !== "already installed"
+      ) {
+        console.warn("[LibraryIQ]", status);
+      }
+    };
+
+    ensurePatchInstalled();
+
+    const intervalId = window.setInterval(ensurePatchInstalled, 2000);
+    const timeoutIds = [250, 1000, 5000].map((delay) =>
+      window.setTimeout(ensurePatchInstalled, delay)
+    );
+
+    window.addEventListener("focus", ensurePatchInstalled);
+    document.addEventListener("visibilitychange", ensurePatchInstalled);
+
+    return () => {
+      window.clearInterval(intervalId);
+
+      for (const timeoutId of timeoutIds) {
+        window.clearTimeout(timeoutId);
+      }
+
+      window.removeEventListener("focus", ensurePatchInstalled);
+      document.removeEventListener("visibilitychange", ensurePatchInstalled);
+    };
   }, []);
 
   return (

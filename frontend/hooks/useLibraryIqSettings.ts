@@ -11,6 +11,11 @@ export const QUICK_FILTER_POSITION_LIMITS = {
   panelTop: { min: 40, max: 500 }
 } as const;
 
+export const BADGE_TITLE_SPACING_LIMITS = {
+  min: 0,
+  max: 20
+} as const;
+
 export const DEFAULT_SETTINGS: LibraryIqSettings = {
   showRatings: true,
   ratingSource: "filtered",
@@ -29,7 +34,8 @@ export const DEFAULT_SETTINGS: LibraryIqSettings = {
   badgeClickAction: "reviews",
   badgeDisplayMode: "percentage",
   badgePillStyle: "glass",
-  badgeShape: "pill"
+  badgeShape: "pill",
+  badgeTitleSpacing: 5
 };
 
 function readNumber(
@@ -169,7 +175,14 @@ export function normalizeSettings(value: unknown): LibraryIqSettings {
       parsed.badgeShape === "rounded" ||
       parsed.badgeShape === "square"
         ? parsed.badgeShape
-        : DEFAULT_SETTINGS.badgeShape
+        : DEFAULT_SETTINGS.badgeShape,
+
+    badgeTitleSpacing: readNumber(
+      parsed.badgeTitleSpacing,
+      DEFAULT_SETTINGS.badgeTitleSpacing,
+      BADGE_TITLE_SPACING_LIMITS.min,
+      BADGE_TITLE_SPACING_LIMITS.max
+    )
   };
 }
 
