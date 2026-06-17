@@ -77,6 +77,7 @@ type PreservedClickHandler = ((
 let planCache = new WeakMap<RowRenderer, CachedPlan>();
 const libraryListProbeCache = new WeakMap<RowRenderer, boolean>();
 const registeredVirtualLists = new Set<VirtualListInstance>();
+let isRestoringLibraryScroll = false;
 
 function isSortOrFilterEnabled(settings: LibraryIqSettings): boolean {
   return settings.minimumRating !== null || settings.ratingSortMode !== "off";
@@ -260,6 +261,8 @@ function captureLibraryScroll(): LibraryScrollSnapshot {
 }
 
 function restoreLibraryScroll(snapshot: LibraryScrollSnapshot) {
+  isRestoringLibraryScroll = true;
+
   for (const item of snapshot.dom) {
     try {
       item.element.scrollTop = item.scrollTop;
@@ -276,6 +279,54 @@ function restoreLibraryScroll(snapshot: LibraryScrollSnapshot) {
 
   window.dispatchEvent(new Event("scroll"));
   window.dispatchEvent(new Event("resize"));
+
+  window.setTimeout(() => {
+    isRestoringLibraryScroll = false;
+  }, 0);
+}
+
+function lockLibraryScroll(snapshot: LibraryScrollSnapshot, durationMs = 240) {
+  const startedAt = Date.now();
+  let frameId = 0;
+  let released = false;
+
+  const restore = () => {
+    restoreLibraryScroll(snapshot);
+  };
+
+  const onScroll = () => {
+    if (!isRestoringLibraryScroll) {
+      restore();
+    }
+  };
+
+  const release = () => {
+    if (released) {
+      return;
+    }
+
+    released = true;
+    window.cancelAnimationFrame(frameId);
+    window.removeEventListener("scroll", onScroll, true);
+    document.removeEventListener("scroll", onScroll, true);
+  };
+
+  const tick = () => {
+    restore();
+
+    if (Date.now() - startedAt >= durationMs) {
+      release();
+      return;
+    }
+
+    frameId = window.requestAnimationFrame(tick);
+  };
+
+  window.addEventListener("scroll", onScroll, true);
+  document.addEventListener("scroll", onScroll, true);
+  tick();
+
+  window.setTimeout(release, durationMs + 80);
 }
 
 function scheduleLibraryScrollRestore(snapshot: LibraryScrollSnapshot) {
@@ -290,6 +341,7 @@ function scheduleLibraryScrollRestore(snapshot: LibraryScrollSnapshot) {
 
 function runWithLibraryScrollPreserved<T>(action: () => T): T {
   const snapshot = captureLibraryScroll();
+  lockLibraryScroll(snapshot);
 
   try {
     const result = action();

@@ -1,6 +1,6 @@
 {
   "name": "library-iq",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Enhances the Steam Library with ratings, metadata, sorting, and quality-of-life tools.",
   "main": "./frontend/index.tsx",
   "scripts": {
