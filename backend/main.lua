@@ -76,7 +76,7 @@ function get_steam_rating(params)
             ["Accept"] = "application/json"
         },
         timeout = 10,
-        user_agent = "LibraryIQ-Millennium/0.2.2"
+        user_agent = "LibraryIQ-Millennium/0.2.3"
     })
 
     if not res then
@@ -142,8 +142,8 @@ return {
             file = [[chunk~[0-9a-f]+\.js]],
             transforms = {
                 {
-                    match = [[\(0,(\w+\.jsx)\)\(\w+\.SteamLogo]],
-                    replace = [[(0,\1)(#{{self}}?.steamRatingsLibrary?.().SteamRatingsLibraryInjector||(()=>null)]]
+                    match = [[\(0,(\w+\.jsx)\)\((\w+\.SteamLogo)]],
+                    replace = [[(0,\1)(#{{self}}?.steamRatingsLibrary?.().SteamRatingsLibraryInjector||(()=>null),{}),(0,\1)(\2]]
                 }
             }
         }
