@@ -22,6 +22,7 @@ It is designed to feel like a native Steam Library enhancement rather than a sep
 - Badge display modes: percentage, compact number, and short review label.
 - Badge styles: glass, solid, outline, and Steam neutral.
 - Badge shapes: pill, squircle, rounded rectangle, and square.
+- Theme compatibility mode for heavily customized Millennium themes.
 - Optional badge click actions for opening Steam reviews or the store page.
 
 ## Screenshots
@@ -81,6 +82,7 @@ Configurable options include:
 - Choose badge colour mode.
 - Enable or disable tooltips.
 - Choose badge position, style, display mode, shape, and click action.
+- Enable theme compatibility mode for safer after-title badges and less invasive Library patching.
 - Set minimum rating filter.
 - Set rating sort mode.
 - Show or hide the quick filter bar.
@@ -157,6 +159,7 @@ backend/
 ## Notes And Limitations
 
 - Steam's Library sidebar is virtualized, so the sorting/filtering patch is intentionally conservative.
+- Theme compatibility mode disables LibraryIQ sorting/filtering and uses the safer after-title badge path for themes that heavily restyle Library rows.
 - Shift-click range selection is treated like a normal click while LibraryIQ sorting/filtering is active to avoid selecting incorrect unsorted ranges.
 - The quick filter uses LibraryIQ's observed Library sidebar markers instead of Steam UI text scanning where possible.
 - API mode should not be used for bulk sorting/filtering across large libraries; sorting/filtering uses internal Steam data for performance.
@@ -182,6 +185,7 @@ After changes, verify:
 14. Clicking a sorted game does not permanently jump the Library list to the unsorted location.
 15. Shift-click does not select incorrect unsorted ranges while LibraryIQ sorting/filtering is active.
 16. Turning sorting/filtering off restores normal Steam behaviour as much as possible.
+17. Theme compatibility mode keeps badges readable with SpaceTheme-style row text effects.
 
 ## License
 

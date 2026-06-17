@@ -1,5 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
-import { useLibraryIqSettings } from "../hooks/useLibraryIqSettings";
+import {
+  readSettings,
+  useLibraryIqSettings
+} from "../hooks/useLibraryIqSettings";
 import {
   getAppIdFromProps,
   getAppIdFromSidebarIconProps
@@ -133,9 +136,13 @@ function LibraryIqIconRatingSlot({
   const iconWidth = 24;
   const iconBadgeGap = 7;
 
-  if (!settings.showRatings || settings.badgePosition === "afterTitle") {
+  if (
+    !settings.showRatings ||
+    settings.compatibilityMode ||
+    settings.badgePosition === "afterTitle"
+  ) {
     return (
-      <span
+      <div
         className="library-iq-icon-rating-wrap"
         style={
           {
@@ -158,7 +165,7 @@ function LibraryIqIconRatingSlot({
         }
       >
         {icon}
-      </span>
+      </div>
     );
   }
 
@@ -167,7 +174,7 @@ function LibraryIqIconRatingSlot({
     iconWidth + iconBadgeGap + badgeWidth + settings.badgeTitleSpacing;
 
   return (
-    <span
+    <div
       className="library-iq-icon-rating-wrap"
       style={
         {
@@ -193,7 +200,7 @@ function LibraryIqIconRatingSlot({
     >
       {icon}
       <SteamSidebarRatingBadge appid={appid} slot="betweenIconAndTitle" />
-    </span>
+    </div>
   );
 }
 
@@ -203,6 +210,16 @@ function maybeWrapSidebarIcon(
   props: unknown,
   key?: unknown
 ): unknown | null {
+  const settings = readSettings();
+
+  if (
+    !settings.showRatings ||
+    settings.compatibilityMode ||
+    settings.badgePosition === "afterTitle"
+  ) {
+    return null;
+  }
+
   const appid = getAppIdFromSidebarIconProps(props);
 
   if (!appid) {

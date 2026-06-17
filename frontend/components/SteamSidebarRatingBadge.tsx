@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { useLibraryIqSettings } from "../hooks/useLibraryIqSettings";
 import { fetchRating } from "../services/ratings";
 import { getInternalRating } from "../services/steamAppStore";
@@ -13,6 +13,14 @@ import type {
   LibraryIqSettings,
   SteamRatingResponse
 } from "../types";
+
+type BadgeStyle = CSSProperties & {
+  "--library-iq-badge-width"?: string;
+  "--library-iq-badge-color"?: string;
+  "--library-iq-badge-background"?: string;
+  "--library-iq-badge-border"?: string;
+  "--library-iq-badge-shadow"?: string;
+};
 
 function getFallbackDisplayRating(
   appid: string,
@@ -134,7 +142,11 @@ export function SteamSidebarRatingBadge({
     };
   }, [appid, settings.showRatings, settings.ratingSource]);
 
-  if (!settings.showRatings || settings.badgePosition !== slot) {
+  const effectiveBadgePosition = settings.compatibilityMode
+    ? "afterTitle"
+    : settings.badgePosition;
+
+  if (!settings.showRatings || effectiveBadgePosition !== slot) {
     return null;
   }
 
@@ -143,7 +155,7 @@ export function SteamSidebarRatingBadge({
   if (!hasDisplayableRating(rating)) {
     if (slot === "betweenIconAndTitle") {
       return (
-        <span
+        <div
           className="library-iq-rating-badge"
           style={{
             display: "inline-flex",
@@ -167,8 +179,22 @@ export function SteamSidebarRatingBadge({
     displayRating.positive_percent ?? 0,
     settings
   );
+  const badgeColor =
+    typeof visualStyle.color === "string"
+      ? visualStyle.color
+      : "rgba(236, 242, 248, 0.98)";
+  const badgeBackground =
+    typeof visualStyle.background === "string"
+      ? visualStyle.background
+      : "rgba(72, 86, 103, 0.58)";
+  const badgeBorder =
+    typeof visualStyle.border === "string"
+      ? visualStyle.border
+      : "1px solid rgba(166, 185, 205, 0.32)";
+  const badgeShadow =
+    typeof visualStyle.boxShadow === "string" ? visualStyle.boxShadow : "none";
 
-  function handleClick(event: MouseEvent<HTMLSpanElement>) {
+  function handleClick(event: MouseEvent<HTMLDivElement>) {
     if (!clickUrl) {
       return;
     }
@@ -180,12 +206,18 @@ export function SteamSidebarRatingBadge({
   }
 
   return (
-    <span
+    <div
       className="library-iq-rating-badge"
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{
+      style={
+        {
+        "--library-iq-badge-width": badgeWidth,
+        "--library-iq-badge-color": badgeColor,
+        "--library-iq-badge-background": badgeBackground,
+        "--library-iq-badge-border": badgeBorder,
+        "--library-iq-badge-shadow": badgeShadow,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -211,7 +243,8 @@ export function SteamSidebarRatingBadge({
         transform: isHovered && clickUrl ? "translateY(-1px)" : "none",
 
         ...visualStyle
-      }}
+        } as BadgeStyle
+      }
       title={
         settings.showTooltip
           ? `${displayRating.review_score_desc ?? "Steam rating"} · ${
@@ -223,6 +256,6 @@ export function SteamSidebarRatingBadge({
       }
     >
       {getLabel(displayRating, settings)}
-    </span>
+    </div>
   );
 }

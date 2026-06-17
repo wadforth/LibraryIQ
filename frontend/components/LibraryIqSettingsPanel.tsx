@@ -382,16 +382,26 @@ export function LibraryIqSettingsPanel() {
         ? "Unfiltered"
         : "API preferred";
 
+  const effectiveBadgePosition = settings.compatibilityMode
+    ? "afterTitle"
+    : settings.badgePosition;
+
   const badgePositionLabel =
-    settings.badgePosition === "betweenIconAndTitle"
+    effectiveBadgePosition === "betweenIconAndTitle"
       ? "Before title"
-      : "After title";
+      : settings.compatibilityMode
+        ? "After title (compat)"
+        : "After title";
 
-  const minimumRatingLabel =
-    settings.minimumRating === null ? "Off" : `${settings.minimumRating}%+`;
+  const minimumRatingLabel = settings.compatibilityMode
+    ? "Disabled by compat"
+    : settings.minimumRating === null
+      ? "Off"
+      : `${settings.minimumRating}%+`;
 
-  const sortLabel =
-    settings.ratingSortMode === "highestFirst"
+  const sortLabel = settings.compatibilityMode
+    ? "Disabled by compat"
+    : settings.ratingSortMode === "highestFirst"
       ? "Highest first"
       : settings.ratingSortMode === "lowestFirst"
         ? "Lowest first"
@@ -511,6 +521,10 @@ export function LibraryIqSettingsPanel() {
             label="Quick filter"
             value={settings.showQuickFilterBar ? "Visible" : "Hidden"}
           />
+          <StatusPill
+            label="Compatibility"
+            value={settings.compatibilityMode ? "Enabled" : "Off"}
+          />
           <StatusPill label="Source" value={sourceLabel} />
           <StatusPill label="Position" value={badgePositionLabel} />
           <StatusPill label="Minimum" value={minimumRatingLabel} />
@@ -530,7 +544,7 @@ export function LibraryIqSettingsPanel() {
 
         <BadgePreview
           colourMode={settings.colourMode}
-          badgePosition={settings.badgePosition}
+          badgePosition={effectiveBadgePosition}
           displayMode={settings.badgeDisplayMode}
           pillStyle={settings.badgePillStyle}
           badgeShape={settings.badgeShape}
@@ -593,6 +607,16 @@ export function LibraryIqSettingsPanel() {
           <ToggleSwitch
             checked={settings.showRatings}
             onChange={(checked) => updateSetting("showRatings", checked)}
+          />
+        </SettingRow>
+
+        <SettingRow
+          title="Theme compatibility mode"
+          description="Uses the safer after-title badge path and disables LibraryIQ list sorting/filtering to avoid conflicts with heavily themed Steam clients."
+        >
+          <ToggleSwitch
+            checked={settings.compatibilityMode}
+            onChange={(checked) => updateSetting("compatibilityMode", checked)}
           />
         </SettingRow>
 

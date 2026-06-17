@@ -14,10 +14,22 @@ type RowRenderer = ((args: unknown) => unknown) & {
 type VirtualGridInstance = {
   forceUpdate?: () => void;
   recomputeGridSize?: () => void;
+  scrollToCell?: (args: { rowIndex?: number; [key: string]: unknown }) => void;
+  scrollToIndex?: (index: number) => void;
   scrollToPosition?: (scrollTop: number) => void;
+  scrollToRow?: (index: number) => void;
   state?: {
     scrollTop?: number;
   };
+};
+
+type PatchedVirtualGridInstance = VirtualGridInstance & {
+  __libraryIqScrollMethodsPatched?: boolean;
+  __libraryIqOriginalRowRenderer?: RowRenderer;
+  __libraryIqOriginalRowCount?: number;
+  __libraryIqOriginalScrollToCell?: VirtualGridInstance["scrollToCell"];
+  __libraryIqOriginalScrollToIndex?: VirtualGridInstance["scrollToIndex"];
+  __libraryIqOriginalScrollToRow?: VirtualGridInstance["scrollToRow"];
 };
 
 type VirtualListInstance = VirtualGridInstance & {
@@ -77,10 +89,12 @@ type PreservedClickHandler = ((
 let planCache = new WeakMap<RowRenderer, CachedPlan>();
 const libraryListProbeCache = new WeakMap<RowRenderer, boolean>();
 const registeredVirtualLists = new Set<VirtualListInstance>();
-let isRestoringLibraryScroll = false;
 
 function isSortOrFilterEnabled(settings: LibraryIqSettings): boolean {
-  return settings.minimumRating !== null || settings.ratingSortMode !== "off";
+  return (
+    !settings.compatibilityMode &&
+    (settings.minimumRating !== null || settings.ratingSortMode !== "off")
+  );
 }
 
 function invalidatePlans() {
@@ -153,10 +167,132 @@ function assignOriginalRef(
   }
 }
 
-function createCapturedRef(originalRef: unknown) {
+function getMappedScrollIndex(
+  rowRenderer: RowRenderer | undefined,
+  rowCount: number | undefined,
+  index: number
+): number {
+  if (
+    !rowRenderer ||
+    typeof rowCount !== "number" ||
+    typeof index !== "number" ||
+    !Number.isFinite(index) ||
+    index < 0
+  ) {
+    return index;
+  }
+
+  const settings = readSettings();
+
+  if (!isSortOrFilterEnabled(settings)) {
+    return index;
+  }
+
+  const displayIndex = getDisplayIndexForOriginalIndex(
+    getPlan(rowRenderer, rowCount, settings),
+    index
+  );
+
+  return displayIndex ?? index;
+}
+
+function patchVirtualGridScrollMethods(
+  grid: VirtualGridInstance | undefined,
+  rowRenderer: RowRenderer,
+  rowCount: number
+) {
+  if (!grid || typeof grid !== "object") {
+    return;
+  }
+
+  const patched = grid as PatchedVirtualGridInstance;
+  patched.__libraryIqOriginalRowRenderer = rowRenderer;
+  patched.__libraryIqOriginalRowCount = rowCount;
+
+  if (patched.__libraryIqScrollMethodsPatched) {
+    return;
+  }
+
+  patched.__libraryIqScrollMethodsPatched = true;
+
+  if (typeof patched.scrollToRow === "function") {
+    patched.__libraryIqOriginalScrollToRow = patched.scrollToRow;
+    patched.scrollToRow = function libraryIqScrollToRow(index: number) {
+      return patched.__libraryIqOriginalScrollToRow?.call(
+        this,
+        getMappedScrollIndex(
+          patched.__libraryIqOriginalRowRenderer,
+          patched.__libraryIqOriginalRowCount,
+          index
+        )
+      );
+    };
+  }
+
+  if (typeof patched.scrollToIndex === "function") {
+    patched.__libraryIqOriginalScrollToIndex = patched.scrollToIndex;
+    patched.scrollToIndex = function libraryIqScrollToIndex(index: number) {
+      return patched.__libraryIqOriginalScrollToIndex?.call(
+        this,
+        getMappedScrollIndex(
+          patched.__libraryIqOriginalRowRenderer,
+          patched.__libraryIqOriginalRowCount,
+          index
+        )
+      );
+    };
+  }
+
+  if (typeof patched.scrollToCell === "function") {
+    patched.__libraryIqOriginalScrollToCell = patched.scrollToCell;
+    patched.scrollToCell = function libraryIqScrollToCell(args: {
+      rowIndex?: number;
+      [key: string]: unknown;
+    }) {
+      if (!args || typeof args !== "object") {
+        return patched.__libraryIqOriginalScrollToCell?.call(this, args);
+      }
+
+      if (typeof args.rowIndex !== "number") {
+        return patched.__libraryIqOriginalScrollToCell?.call(this, args);
+      }
+
+      return patched.__libraryIqOriginalScrollToCell?.call(this, {
+        ...args,
+        rowIndex: getMappedScrollIndex(
+          patched.__libraryIqOriginalRowRenderer,
+          patched.__libraryIqOriginalRowCount,
+          args.rowIndex
+        )
+      });
+    };
+  }
+}
+
+function patchVirtualListScrollMethods(
+  instance: VirtualListInstance,
+  rowRenderer: RowRenderer,
+  rowCount: number
+) {
+  patchVirtualGridScrollMethods(instance, rowRenderer, rowCount);
+  patchVirtualGridScrollMethods(instance.Grid, rowRenderer, rowCount);
+  patchVirtualGridScrollMethods(instance._grid, rowRenderer, rowCount);
+  patchVirtualGridScrollMethods(instance.List, rowRenderer, rowCount);
+  patchVirtualGridScrollMethods(instance._list, rowRenderer, rowCount);
+}
+
+function createCapturedRef(
+  originalRef: unknown,
+  rowRenderer?: RowRenderer,
+  rowCount?: number
+) {
   return function libraryIqVirtualListRef(instance: VirtualListInstance | null) {
     if (instance) {
       registeredVirtualLists.add(instance);
+
+      if (rowRenderer && typeof rowCount === "number") {
+        patchVirtualListScrollMethods(instance, rowRenderer, rowCount);
+      }
     }
 
     assignOriginalRef(originalRef, instance);
@@ -261,8 +397,6 @@ function captureLibraryScroll(): LibraryScrollSnapshot {
 }
 
 function restoreLibraryScroll(snapshot: LibraryScrollSnapshot) {
-  isRestoringLibraryScroll = true;
-
   for (const item of snapshot.dom) {
     try {
       item.element.scrollTop = item.scrollTop;
@@ -279,54 +413,6 @@ function restoreLibraryScroll(snapshot: LibraryScrollSnapshot) {
 
   window.dispatchEvent(new Event("scroll"));
   window.dispatchEvent(new Event("resize"));
-
-  window.setTimeout(() => {
-    isRestoringLibraryScroll = false;
-  }, 0);
-}
-
-function lockLibraryScroll(snapshot: LibraryScrollSnapshot, durationMs = 240) {
-  const startedAt = Date.now();
-  let frameId = 0;
-  let released = false;
-
-  const restore = () => {
-    restoreLibraryScroll(snapshot);
-  };
-
-  const onScroll = () => {
-    if (!isRestoringLibraryScroll) {
-      restore();
-    }
-  };
-
-  const release = () => {
-    if (released) {
-      return;
-    }
-
-    released = true;
-    window.cancelAnimationFrame(frameId);
-    window.removeEventListener("scroll", onScroll, true);
-    document.removeEventListener("scroll", onScroll, true);
-  };
-
-  const tick = () => {
-    restore();
-
-    if (Date.now() - startedAt >= durationMs) {
-      release();
-      return;
-    }
-
-    frameId = window.requestAnimationFrame(tick);
-  };
-
-  window.addEventListener("scroll", onScroll, true);
-  document.addEventListener("scroll", onScroll, true);
-  tick();
-
-  window.setTimeout(release, durationMs + 80);
 }
 
 function scheduleLibraryScrollRestore(snapshot: LibraryScrollSnapshot) {
@@ -341,7 +427,6 @@ function scheduleLibraryScrollRestore(snapshot: LibraryScrollSnapshot) {
 
 function runWithLibraryScrollPreserved<T>(action: () => T): T {
   const snapshot = captureLibraryScroll();
-  lockLibraryScroll(snapshot);
 
   try {
     const result = action();
@@ -403,9 +488,11 @@ function wrapClickHandler(handler: unknown): unknown {
     this: unknown,
     ...args: unknown[]
   ) {
-    const safeArgs = args.map((arg) => stripShiftFromEvent(arg));
+    return runWithLibraryScrollPreserved(() => {
+      const safeArgs = args.map((arg) => stripShiftFromEvent(arg));
 
-    return runWithLibraryScrollPreserved(() => original.apply(this, safeArgs));
+      return original.apply(this, safeArgs);
+    });
   } as PreservedClickHandler;
 
   wrapped.__libraryIqScrollPreserved = true;
@@ -864,6 +951,17 @@ function getPlan(
   return plan;
 }
 
+function getDisplayIndexForOriginalIndex(
+  plan: CachedPlan,
+  originalIndex: number
+): number | null {
+  const displayIndex = plan.displayRows.findIndex(
+    (row) => row.originalIndex === originalIndex
+  );
+
+  return displayIndex >= 0 ? displayIndex : null;
+}
+
 function getVirtualIndex(rowArgs: unknown): number {
   if (!rowArgs || typeof rowArgs !== "object") {
     return 0;
@@ -1038,6 +1136,10 @@ function renderAppRowWithTargetGame(
 export function patchLibraryListProps(props: unknown): unknown {
   installRefreshListener();
 
+  if (readSettings().compatibilityMode) {
+    return props;
+  }
+
   if (!props || typeof props !== "object") {
     return props;
   }
@@ -1069,7 +1171,7 @@ export function patchLibraryListProps(props: unknown): unknown {
 
     return {
       ...obj,
-      ref: createCapturedRef(obj.ref),
+      ref: createCapturedRef(obj.ref, originalRowRenderer, originalRowCount),
       rowCount: planAtRender ? planAtRender.displayRows.length : originalRowCount
     };
   }
@@ -1137,7 +1239,7 @@ export function patchLibraryListProps(props: unknown): unknown {
 
   return {
     ...obj,
-    ref: createCapturedRef(obj.ref),
+    ref: createCapturedRef(obj.ref, originalRowRenderer, originalRowCount),
     rowCount: planAtRender ? planAtRender.displayRows.length : originalRowCount,
     rowRenderer: patchedRowRenderer
   };

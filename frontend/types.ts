@@ -22,6 +22,7 @@ export type BadgePillStyle = "glass" | "solid" | "outline" | "steam";
 export type BadgeShape = "pill" | "squircle" | "rounded" | "square";
 
 export type LibraryIqSettings = {
+  compatibilityMode: boolean;
   showRatings: boolean;
   ratingSource: RatingSource;
   colourMode: ColourMode;

@@ -17,6 +17,7 @@ export const BADGE_TITLE_SPACING_LIMITS = {
 } as const;
 
 export const DEFAULT_SETTINGS: LibraryIqSettings = {
+  compatibilityMode: false,
   showRatings: true,
   ratingSource: "filtered",
   colourMode: "coloured",
@@ -77,6 +78,11 @@ export function normalizeSettings(value: unknown): LibraryIqSettings {
   const parsed = readObject(value);
 
   return {
+    compatibilityMode:
+      typeof parsed.compatibilityMode === "boolean"
+        ? parsed.compatibilityMode
+        : DEFAULT_SETTINGS.compatibilityMode,
+
     showRatings:
       typeof parsed.showRatings === "boolean"
         ? parsed.showRatings

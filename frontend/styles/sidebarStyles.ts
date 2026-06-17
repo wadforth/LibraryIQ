@@ -57,6 +57,34 @@ export function installSidebarStyles() {
       text-align: center !important;
       -webkit-font-smoothing: antialiased !important;
       -moz-osx-font-smoothing: grayscale !important;
+      position: relative !important;
+      color: var(--library-iq-badge-color, rgba(236, 242, 248, 0.98)) !important;
+      background: var(--library-iq-badge-background, rgba(72, 86, 103, 0.58)) !important;
+      border: var(--library-iq-badge-border, 1px solid rgba(166, 185, 205, 0.32)) !important;
+      box-shadow: var(--library-iq-badge-shadow, none) !important;
+    }
+
+    .library-iq-rating-badge::before,
+    .library-iq-rating-badge::after,
+    .library-iq-rating-badge *::before,
+    .library-iq-rating-badge *::after {
+      content: none !important;
+      display: none !important;
+      animation: none !important;
+    }
+
+    .library-iq-rating-badge,
+    .library-iq-rating-badge * {
+      visibility: visible !important;
+      color: var(--library-iq-badge-color, rgba(236, 242, 248, 0.98)) !important;
+      text-shadow: none !important;
+      -webkit-text-fill-color: var(--library-iq-badge-color, rgba(236, 242, 248, 0.98)) !important;
+    }
+
+    .library-iq-sidebar-host .library-iq-rating-badge {
+      width: var(--library-iq-badge-width, 40px) !important;
+      min-width: var(--library-iq-badge-width, 40px) !important;
+      max-width: var(--library-iq-badge-width, 40px) !important;
     }
   `;
 
