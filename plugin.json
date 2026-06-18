@@ -3,7 +3,7 @@
   "name": "library_iq",
   "common_name": "LibraryIQ",
   "description": "Enhances the Steam Library with ratings, metadata, sorting, and quality-of-life tools.",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "backendType": "lua",
   "webkitApiVersion": "2.0.0"
 }

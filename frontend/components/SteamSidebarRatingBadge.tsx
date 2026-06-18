@@ -20,6 +20,8 @@ type BadgeStyle = CSSProperties & {
   "--library-iq-badge-background"?: string;
   "--library-iq-badge-border"?: string;
   "--library-iq-badge-shadow"?: string;
+  "--library-iq-badge-left-spacing"?: string;
+  "--library-iq-badge-right-spacing"?: string;
 };
 
 function getFallbackDisplayRating(
@@ -153,19 +155,30 @@ export function SteamSidebarRatingBadge({
   const badgeWidth = getBadgeWidth(settings.badgeDisplayMode);
 
   if (!hasDisplayableRating(rating)) {
-    if (slot === "betweenIconAndTitle") {
+    if (slot === "beforeIcon" || slot === "betweenIconAndTitle") {
       return (
         <div
-          className="library-iq-rating-badge"
-          style={{
+          className={`library-iq-rating-badge library-iq-rating-badge-${slot}`}
+          style={
+            {
             display: "inline-flex",
             width: badgeWidth,
             minWidth: badgeWidth,
             maxWidth: badgeWidth,
             height: "16px",
+            "--library-iq-badge-left-spacing": "0px",
+            "--library-iq-badge-right-spacing":
+              slot === "beforeIcon" || slot === "betweenIconAndTitle"
+                ? `${settings.badgeTitleSpacing}px`
+                : "0px",
+            marginRight:
+              slot === "beforeIcon" || slot === "betweenIconAndTitle"
+                ? `${settings.badgeTitleSpacing}px`
+                : 0,
             opacity: 0,
             pointerEvents: "none"
-          }}
+            } as BadgeStyle
+          }
         />
       );
     }
@@ -207,7 +220,7 @@ export function SteamSidebarRatingBadge({
 
   return (
     <div
-      className="library-iq-rating-badge"
+      className={`library-iq-rating-badge library-iq-rating-badge-${slot}`}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -218,6 +231,12 @@ export function SteamSidebarRatingBadge({
         "--library-iq-badge-background": badgeBackground,
         "--library-iq-badge-border": badgeBorder,
         "--library-iq-badge-shadow": badgeShadow,
+        "--library-iq-badge-left-spacing":
+          slot === "afterTitle" ? `${settings.badgeTitleSpacing}px` : "0px",
+        "--library-iq-badge-right-spacing":
+          slot === "beforeIcon" || slot === "betweenIconAndTitle"
+            ? `${settings.badgeTitleSpacing}px`
+            : "0px",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -239,6 +258,12 @@ export function SteamSidebarRatingBadge({
         textAlign: "center",
         userSelect: "none",
         pointerEvents: "auto",
+        marginLeft:
+          slot === "afterTitle" ? `${settings.badgeTitleSpacing}px` : 0,
+        marginRight:
+          slot === "beforeIcon" || slot === "betweenIconAndTitle"
+            ? `${settings.badgeTitleSpacing}px`
+            : 0,
         cursor: clickUrl ? "pointer" : "default",
         transform: isHovered && clickUrl ? "translateY(-1px)" : "none",
 

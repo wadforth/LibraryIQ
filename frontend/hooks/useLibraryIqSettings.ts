@@ -106,6 +106,7 @@ export function normalizeSettings(value: unknown): LibraryIqSettings {
         : DEFAULT_SETTINGS.showTooltip,
 
     badgePosition:
+      parsed.badgePosition === "beforeIcon" ||
       parsed.badgePosition === "betweenIconAndTitle" ||
       parsed.badgePosition === "afterTitle"
         ? parsed.badgePosition

@@ -229,7 +229,9 @@ function BadgePreview({
           pillStyle,
           badgeShape
         }),
+        marginLeft: badgePosition === "afterTitle" ? "auto" : 0,
         marginRight:
+          badgePosition === "beforeIcon" ||
           badgePosition === "betweenIconAndTitle"
             ? `${badgeTitleSpacing}px`
             : 0
@@ -252,13 +254,16 @@ function BadgePreview({
         overflow: "hidden"
       }}
     >
+      {badgePosition === "beforeIcon" ? badge : null}
+
       <div
         style={{
           width: "24px",
           minWidth: "24px",
           height: "24px",
           borderRadius: "5px",
-          marginRight: badgePosition === "betweenIconAndTitle" ? "7px" : "9px",
+          marginRight:
+            badgePosition === "betweenIconAndTitle" ? "7px" : "9px",
           background:
             "linear-gradient(135deg, rgba(82,125,170,0.9), rgba(30,45,64,0.9))",
           border: "1px solid rgba(255,255,255,0.12)"
@@ -276,7 +281,7 @@ function BadgePreview({
           color: "rgba(225,234,246,0.88)",
           fontSize: "13px",
           fontWeight: 650,
-          marginRight: badgePosition === "afterTitle" ? "9px" : 0
+          marginRight: 0
         }}
       >
         Example Game
@@ -387,7 +392,9 @@ export function LibraryIqSettingsPanel() {
     : settings.badgePosition;
 
   const badgePositionLabel =
-    effectiveBadgePosition === "betweenIconAndTitle"
+    effectiveBadgePosition === "beforeIcon"
+      ? "Before icon"
+      : effectiveBadgePosition === "betweenIconAndTitle"
       ? "Before title"
       : settings.compatibilityMode
         ? "After title (compat)"
@@ -632,12 +639,16 @@ export function LibraryIqSettingsPanel() {
 
         <SettingRow
           title="Badge position"
-          description="Choose whether the badge appears between the icon and title, or after the title."
+          description="Choose whether the badge appears before the icon, between the icon and title, or after the title."
         >
           <SelectBox<BadgePosition>
             value={settings.badgePosition}
             onChange={(value) => updateSetting("badgePosition", value)}
             options={[
+              {
+                value: "beforeIcon",
+                label: "Before icon"
+              },
               {
                 value: "betweenIconAndTitle",
                 label: "Between icon and title"

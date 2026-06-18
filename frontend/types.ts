@@ -9,7 +9,7 @@ export type RatingSource = "filtered" | "unfiltered" | "api";
 
 export type ColourMode = "coloured" | "neutral";
 
-export type BadgePosition = "betweenIconAndTitle" | "afterTitle";
+export type BadgePosition = "beforeIcon" | "betweenIconAndTitle" | "afterTitle";
 
 export type RatingSortMode = "off" | "highestFirst" | "lowestFirst";
 

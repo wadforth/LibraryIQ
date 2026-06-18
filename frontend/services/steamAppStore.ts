@@ -87,11 +87,7 @@ export function getAppIdFromSidebarIconProps(props: unknown): string | null {
 
   const obj = props as Record<string, unknown>;
 
-  if (!("app" in obj)) {
-    return null;
-  }
-
-  if (!("eAssetType" in obj)) {
+  if (!("app" in obj) || !("eAssetType" in obj)) {
     return null;
   }
 

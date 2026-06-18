@@ -5,11 +5,12 @@ import {
 } from "../hooks/useLibraryIqSettings";
 import {
   getAppIdFromProps,
-  getAppIdFromSidebarIconProps
+  getAppIdFromSidebarIconProps,
+  toNumber
 } from "../services/steamAppStore";
 import { findJsxRuntime, getWebpackRequire } from "../services/webpackRuntime";
 import { installSidebarStyles } from "../styles/sidebarStyles";
-import type { JsxFn } from "../types";
+import type { BadgePosition, JsxFn } from "../types";
 import { SteamSidebarRatingBadge } from "../components/SteamSidebarRatingBadge";
 import { getBadgeWidth } from "../styles/badgeVisuals";
 import { markLibraryContextObserved } from "./libraryContext";
@@ -29,6 +30,24 @@ type IconRatingSlotStyle = CSSProperties & {
   "--library-iq-badge-title-spacing"?: string;
 };
 
+const SIDEBAR_ICON_SIZE_KEYS = [
+  "width",
+  "height",
+  "nWidth",
+  "nHeight",
+  "unWidth",
+  "unHeight",
+  "imageWidth",
+  "imageHeight"
+];
+
+const SIDEBAR_ROW_CLASS_TOKENS = [
+  "_2-o4zg0krnsrzishbkctfq",
+  "_1vo6boivslzgs1kqdgdus8"
+];
+
+const SIDEBAR_ICON_CLASS_TOKENS = ["ga1hyw11cdbvodrcaidpf"];
+
 function isLibraryIqPatched(value: unknown): value is PatchedJsxFn {
   return Boolean(
     value &&
@@ -44,13 +63,17 @@ function isSidebarVisibleWrapperProps(props: unknown): boolean {
 
   const obj = props as Record<string, unknown>;
   const appid = getAppIdFromProps(props);
+  const className = getStringValue(obj.className);
 
   if (!appid || appid === "0") {
     return false;
   }
 
+  if (!SIDEBAR_ROW_CLASS_TOKENS.some((token) => className.includes(token))) {
+    return false;
+  }
+
   return (
-    "className" in obj &&
     "appid" in obj &&
     "strCollectionId" in obj &&
     "includeMultiSelect" in obj &&
@@ -58,34 +81,93 @@ function isSidebarVisibleWrapperProps(props: unknown): boolean {
   );
 }
 
-function appendAfterTitleBadge(
-  originalJsx: JsxFn,
-  children: unknown,
-  appid: string
-): unknown {
-  const badgeKey = `library-iq-rating-after-title-${appid}`;
+function getStringValue(value: unknown): string {
+  return typeof value === "string" ? value.toLowerCase() : "";
+}
 
-  const badge = originalJsx(
+function isLikelySidebarIconAssetProps(props: unknown): boolean {
+  if (!props || typeof props !== "object") {
+    return false;
+  }
+
+  const obj = props as Record<string, unknown>;
+  const assetType = String(obj.eAssetType ?? "").toLowerCase();
+  const className = getStringValue(obj.className);
+  const source = getStringValue(obj.src) || getStringValue(obj.imageUrl);
+  let observedSmallSize = false;
+
+  if (className.includes("hero") || className.includes("capsule")) {
+    return false;
+  }
+
+  if (source.includes("library_hero") || source.includes("library_capsule")) {
+    return false;
+  }
+
+  for (const key of SIDEBAR_ICON_SIZE_KEYS) {
+    const size = toNumber(obj[key]);
+
+    if (size !== null && size > 64) {
+      return false;
+    }
+
+    if (size !== null && size > 0 && size <= 32) {
+      observedSmallSize = true;
+    }
+  }
+
+  return (
+    assetType !== "" &&
+    (observedSmallSize ||
+      SIDEBAR_ICON_CLASS_TOKENS.some((token) => className.includes(token)))
+  );
+}
+
+function buildSidebarBadge(
+  originalJsx: JsxFn,
+  appid: string,
+  slot: BadgePosition
+): unknown {
+  return originalJsx(
     SteamSidebarRatingBadge,
     {
       appid,
-      slot: "afterTitle"
+      slot
     },
-    badgeKey
+    `library-iq-rating-${slot}-${appid}`
   );
+}
+
+function childHasLibraryIqBadge(child: unknown): boolean {
+  if (!child || typeof child !== "object") {
+    return false;
+  }
+
+  const key = (child as Record<string, unknown>).key;
+
+  return typeof key === "string" && key.startsWith("library-iq-rating-");
+}
+
+function insertSidebarBadge(
+  originalJsx: JsxFn,
+  children: unknown,
+  appid: string,
+  slot: BadgePosition
+): unknown {
+  const badge = buildSidebarBadge(originalJsx, appid, slot);
 
   if (Array.isArray(children)) {
-    const alreadyHasBadge = children.some((child) => {
-      if (!child || typeof child !== "object") {
-        return false;
-      }
-
-      const obj = child as Record<string, unknown>;
-      return obj.key === badgeKey;
-    });
-
-    if (alreadyHasBadge) {
+    if (children.some(childHasLibraryIqBadge)) {
       return children;
+    }
+
+    if (slot === "beforeIcon") {
+      return [badge, ...children];
+    }
+
+    if (slot === "betweenIconAndTitle") {
+      const [firstChild, ...restChildren] = children;
+      return [firstChild, badge, ...restChildren];
     }
 
     return [...children, badge];
@@ -95,7 +177,7 @@ function appendAfterTitleBadge(
     return [badge];
   }
 
-  return [children, badge];
+  return slot === "beforeIcon" ? [badge, children] : [children, badge];
 }
 
 function patchPropsForVisibleSidebarWrapper(
@@ -114,14 +196,19 @@ function patchPropsForVisibleSidebarWrapper(
 
   markLibraryContextObserved();
 
+  const settings = readSettings();
+  const slot = settings.compatibilityMode ? "afterTitle" : settings.badgePosition;
   const obj = props as Record<string, unknown>;
   const existingClassName =
     typeof obj.className === "string" ? obj.className : "";
 
   return {
     ...obj,
-    className: `${existingClassName} library-iq-sidebar-host`.trim(),
-    children: appendAfterTitleBadge(originalJsx, obj.children, appid)
+    className: `${existingClassName} library-iq-sidebar-host library-iq-sidebar-host-${slot}`.trim(),
+    children:
+      slot === "afterTitle"
+        ? insertSidebarBadge(originalJsx, obj.children, appid, slot)
+        : obj.children
   };
 }
 
@@ -141,60 +228,71 @@ function LibraryIqIconRatingSlot({
     settings.compatibilityMode ||
     settings.badgePosition === "afterTitle"
   ) {
+    return <>{icon}</>;
+  }
+
+  const badgeWidth = getBadgeWidth(settings.badgeDisplayMode);
+  const numericBadgeWidth = Number.parseInt(badgeWidth, 10) || 40;
+
+  if (settings.badgePosition === "beforeIcon") {
+    const wrapperWidth = numericBadgeWidth + settings.badgeTitleSpacing + iconWidth;
+
     return (
       <div
         className="library-iq-icon-rating-wrap"
         style={
           {
-          "--library-iq-icon-rating-width": `${iconWidth}px`,
-          "--library-iq-icon-badge-gap": "0px",
-          "--library-iq-icon-rating-margin-right": "10px",
-          "--library-iq-badge-title-spacing": "0px",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "flex-start",
-          width: `${iconWidth}px`,
-          minWidth: `${iconWidth}px`,
-          maxWidth: `${iconWidth}px`,
-          flex: `0 0 ${iconWidth}px`,
-          marginRight: "10px",
-          boxSizing: "border-box",
-          overflow: "visible",
-          verticalAlign: "middle"
+            "--library-iq-icon-rating-width": `${wrapperWidth}px`,
+            "--library-iq-icon-badge-gap": "0px",
+            "--library-iq-icon-rating-margin-right": "10px",
+            "--library-iq-badge-title-spacing": "0px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            width: `${wrapperWidth}px`,
+            minWidth: `${wrapperWidth}px`,
+            maxWidth: `${wrapperWidth}px`,
+            flex: `0 0 ${wrapperWidth}px`,
+            gap: "0px",
+            marginRight: "10px",
+            paddingRight: "0px",
+            boxSizing: "border-box",
+            overflow: "visible",
+            verticalAlign: "middle"
           } as IconRatingSlotStyle
         }
       >
+        <SteamSidebarRatingBadge appid={appid} slot="beforeIcon" />
         {icon}
       </div>
     );
   }
 
-  const badgeWidth = getBadgeWidth(settings.badgeDisplayMode);
   const wrapperWidth =
-    iconWidth + iconBadgeGap + badgeWidth + settings.badgeTitleSpacing;
+    iconWidth + iconBadgeGap + numericBadgeWidth + settings.badgeTitleSpacing;
 
   return (
     <div
       className="library-iq-icon-rating-wrap"
       style={
         {
-        "--library-iq-icon-rating-width": `${wrapperWidth}px`,
-        "--library-iq-icon-badge-gap": `${iconBadgeGap}px`,
-        "--library-iq-icon-rating-margin-right": "0px",
-        "--library-iq-badge-title-spacing": `${settings.badgeTitleSpacing}px`,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        width: `${wrapperWidth}px`,
-        minWidth: `${wrapperWidth}px`,
-        maxWidth: `${wrapperWidth}px`,
-        flex: `0 0 ${wrapperWidth}px`,
-        gap: `${iconBadgeGap}px`,
-        marginRight: "0px",
-        paddingRight: `${settings.badgeTitleSpacing}px`,
-        boxSizing: "border-box",
-        overflow: "visible",
-        verticalAlign: "middle"
+          "--library-iq-icon-rating-width": `${wrapperWidth}px`,
+          "--library-iq-icon-badge-gap": `${iconBadgeGap}px`,
+          "--library-iq-icon-rating-margin-right": "0px",
+          "--library-iq-badge-title-spacing": `${settings.badgeTitleSpacing}px`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          width: `${wrapperWidth}px`,
+          minWidth: `${wrapperWidth}px`,
+          maxWidth: `${wrapperWidth}px`,
+          flex: `0 0 ${wrapperWidth}px`,
+          gap: `${iconBadgeGap}px`,
+          marginRight: "0px",
+          paddingRight: `${settings.badgeTitleSpacing}px`,
+          boxSizing: "border-box",
+          overflow: "visible",
+          verticalAlign: "middle"
         } as IconRatingSlotStyle
       }
     >
@@ -215,7 +313,8 @@ function maybeWrapSidebarIcon(
   if (
     !settings.showRatings ||
     settings.compatibilityMode ||
-    settings.badgePosition === "afterTitle"
+    settings.badgePosition === "afterTitle" ||
+    !isLikelySidebarIconAssetProps(props)
   ) {
     return null;
   }

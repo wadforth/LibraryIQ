@@ -16,6 +16,7 @@ export function installSidebarStyles() {
       align-items: center !important;
       width: 100% !important;
       min-width: 0 !important;
+      box-sizing: border-box !important;
     }
 
     .library-iq-icon-rating-wrap {
@@ -85,6 +86,34 @@ export function installSidebarStyles() {
       width: var(--library-iq-badge-width, 40px) !important;
       min-width: var(--library-iq-badge-width, 40px) !important;
       max-width: var(--library-iq-badge-width, 40px) !important;
+    }
+
+    .library-iq-sidebar-host > .library-iq-rating-badge-beforeIcon,
+    .library-iq-sidebar-host > .library-iq-rating-badge-betweenIconAndTitle {
+      margin-right: var(--library-iq-badge-right-spacing, 5px) !important;
+    }
+
+    .library-iq-sidebar-host > .library-iq-rating-badge-afterTitle {
+      margin-left: 0 !important;
+    }
+
+    .library-iq-sidebar-host-afterTitle {
+      position: relative !important;
+      padding-right: 52px !important;
+    }
+
+    .library-iq-sidebar-host-afterTitle > :not(.library-iq-rating-badge-afterTitle) {
+      min-width: 0 !important;
+    }
+
+    .library-iq-sidebar-host-afterTitle > .library-iq-rating-badge-afterTitle {
+      position: absolute !important;
+      right: 4px !important;
+      top: 50% !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      transform: translateY(-50%) !important;
+      z-index: 2 !important;
     }
   `;
 

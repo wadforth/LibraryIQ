@@ -18,7 +18,7 @@ It is designed to feel like a native Steam Library enhancement rather than a sep
 - Rating sorting with highest-first and lowest-first modes.
 - Sorting/filtering support for flat Library view and grouped-by-collection Library view.
 - Compact quick filter bar for changing common filters without opening settings.
-- Custom badge placement before the title or after the title.
+- Custom badge placement before the icon, between the icon and title, or after the title.
 - Badge display modes: percentage, compact number, and short review label.
 - Badge styles: glass, solid, outline, and Steam neutral.
 - Badge shapes: pill, squircle, rounded rectangle, and square.
@@ -160,6 +160,7 @@ backend/
 
 - Steam's Library sidebar is virtualized, so the sorting/filtering patch is intentionally conservative.
 - Theme compatibility mode disables LibraryIQ sorting/filtering and uses the safer after-title badge path for themes that heavily restyle Library rows.
+- Custom Steam/Millennium themes are not guaranteed to work. LibraryIQ tries to avoid fragile theme conflicts, but themes that heavily rewrite Library row structure, asset sizing, or text rendering can still need theme-specific fixes.
 - Shift-click range selection is treated like a normal click while LibraryIQ sorting/filtering is active to avoid selecting incorrect unsorted ranges.
 - The quick filter uses LibraryIQ's observed Library sidebar markers instead of Steam UI text scanning where possible.
 - API mode should not be used for bulk sorting/filtering across large libraries; sorting/filtering uses internal Steam data for performance.

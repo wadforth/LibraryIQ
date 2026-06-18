@@ -76,7 +76,7 @@ function get_steam_rating(params)
             ["Accept"] = "application/json"
         },
         timeout = 10,
-        user_agent = "LibraryIQ-Millennium/0.2.3"
+        user_agent = "LibraryIQ-Millennium/0.2.4"
     })
 
     if not res then
