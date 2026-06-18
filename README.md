@@ -31,23 +31,9 @@ It is designed to feel like a native Steam Library enhancement rather than a sep
 
 <img width="255" height="355" alt="image" src="https://github.com/user-attachments/assets/3073bf3b-bbc5-4954-8047-9ebd658cc695" />
 
-**Quick Filter Collapsed**
-
-- Icon will change based on filters. You can also change the location within settings in real-time. Bug/Feature(?) note: the filter icon might disappear. If you click the home button it'll reappear :)
-
-<img width="218" height="39" alt="image" src="https://github.com/user-attachments/assets/9dd8140c-96ff-48f9-b82f-5bae09415554" />
-
-**Quick Filter Expanded**
-
-<img width="250" height="141" alt="image" src="https://github.com/user-attachments/assets/88857d5e-a9cb-42a9-a7a3-e43f0d1c420d" />
 
 **Settings Panel**
-
-<img width="288" height="1368" alt="image" src="https://github.com/user-attachments/assets/105f4ad3-071b-46c0-a1cb-c1c8372503db" />
-
-**Sorting And Filtering**
-
-<img width="277" height="686" alt="image" src="https://github.com/user-attachments/assets/1d269e7e-86aa-4879-8d4e-f6e8a97ddefa" />
+<img width="949" height="1525" alt="image" src="https://github.com/user-attachments/assets/e48a22b2-49d6-4158-86e2-ecc69f7e50d0" />
 
 ## How It Works
 
