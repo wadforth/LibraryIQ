@@ -2,6 +2,7 @@ import {
   SETTINGS_EVENT,
   readSettings
 } from "../hooks/useLibraryIqSettings";
+import { debugLog, debugLogOnce } from "../services/debug";
 import { getInternalRating } from "../services/steamAppStore";
 import type { LibraryIqSettings } from "../types";
 
@@ -140,6 +141,9 @@ function installRefreshListener() {
   refreshListenerInstalled = true;
 
   window.addEventListener(SETTINGS_EVENT, () => {
+    debugLog("libraryListPatch", "settings changed; refreshing registered virtual lists", {
+      registeredVirtualLists: registeredVirtualLists.size
+    });
     refreshRegisteredVirtualLists();
   });
 }
@@ -661,6 +665,12 @@ function isConfirmedLibraryList(
 
       if (appProps) {
         libraryListProbeCache.set(rowRenderer, true);
+        debugLogOnce(
+          `confirmed-library-list-${rowCount}`,
+          "libraryListPatch",
+          "confirmed Library virtual list",
+          { rowCount, probeIndex: index }
+        );
         return true;
       }
     } catch {
@@ -669,6 +679,12 @@ function isConfirmedLibraryList(
   }
 
   libraryListProbeCache.set(rowRenderer, false);
+  debugLogOnce(
+    `rejected-virtual-list-${rowCount}`,
+    "libraryListPatch",
+    "rejected virtual list after probes",
+    { rowCount }
+  );
   return false;
 }
 
@@ -938,6 +954,15 @@ function getPlan(
 
   const rows = scanRows(rowRenderer, rowCount, settings);
   const displayRows = applyFilterAndSort(rows, settings);
+
+  debugLog("libraryListPatch", "built filter/sort plan", {
+    rowCount,
+    displayRowCount: displayRows.length,
+    appRows: rows.filter((row) => row.kind === "app").length,
+    minimumRating: settings.minimumRating,
+    ratingSortMode: settings.ratingSortMode,
+    ratingSource: settings.ratingSource
+  });
 
   const plan: CachedPlan = {
     rowCount,

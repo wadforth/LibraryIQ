@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   readSettings,
   useLibraryIqSettings
@@ -8,6 +9,12 @@ import {
   getAppIdFromSidebarIconProps,
   toNumber
 } from "../services/steamAppStore";
+import { debugLog, debugLogOnce } from "../services/debug";
+import {
+  ensureThemeCompatibilityLoaded,
+  getThemeSafeSidebarBadgePosition,
+  isMinimalDarkActive
+} from "../services/themeCompatibility";
 import { findJsxRuntime, getWebpackRequire } from "../services/webpackRuntime";
 import { installSidebarStyles } from "../styles/sidebarStyles";
 import type { BadgePosition, JsxFn } from "../types";
@@ -30,6 +37,11 @@ type IconRatingSlotStyle = CSSProperties & {
   "--library-iq-badge-title-spacing"?: string;
 };
 
+const SIDEBAR_ROW_CLASS_TOKENS = [
+  "_2-o4zg0krnsrzishbkctfq",
+  "_1vo6boivslzgs1kqdgdus8"
+];
+
 const SIDEBAR_ICON_SIZE_KEYS = [
   "width",
   "height",
@@ -40,13 +52,6 @@ const SIDEBAR_ICON_SIZE_KEYS = [
   "imageWidth",
   "imageHeight"
 ];
-
-const SIDEBAR_ROW_CLASS_TOKENS = [
-  "_2-o4zg0krnsrzishbkctfq",
-  "_1vo6boivslzgs1kqdgdus8"
-];
-
-const SIDEBAR_ICON_CLASS_TOKENS = ["ga1hyw11cdbvodrcaidpf"];
 
 function isLibraryIqPatched(value: unknown): value is PatchedJsxFn {
   return Boolean(
@@ -85,44 +90,6 @@ function getStringValue(value: unknown): string {
   return typeof value === "string" ? value.toLowerCase() : "";
 }
 
-function isLikelySidebarIconAssetProps(props: unknown): boolean {
-  if (!props || typeof props !== "object") {
-    return false;
-  }
-
-  const obj = props as Record<string, unknown>;
-  const assetType = String(obj.eAssetType ?? "").toLowerCase();
-  const className = getStringValue(obj.className);
-  const source = getStringValue(obj.src) || getStringValue(obj.imageUrl);
-  let observedSmallSize = false;
-
-  if (className.includes("hero") || className.includes("capsule")) {
-    return false;
-  }
-
-  if (source.includes("library_hero") || source.includes("library_capsule")) {
-    return false;
-  }
-
-  for (const key of SIDEBAR_ICON_SIZE_KEYS) {
-    const size = toNumber(obj[key]);
-
-    if (size !== null && size > 64) {
-      return false;
-    }
-
-    if (size !== null && size > 0 && size <= 32) {
-      observedSmallSize = true;
-    }
-  }
-
-  return (
-    assetType !== "" &&
-    (observedSmallSize ||
-      SIDEBAR_ICON_CLASS_TOKENS.some((token) => className.includes(token)))
-  );
-}
-
 function buildSidebarBadge(
   originalJsx: JsxFn,
   appid: string,
@@ -148,6 +115,39 @@ function childHasLibraryIqBadge(child: unknown): boolean {
   return typeof key === "string" && key.startsWith("library-iq-rating-");
 }
 
+function isLikelySidebarIconAssetProps(props: unknown): boolean {
+  if (!props || typeof props !== "object") {
+    return false;
+  }
+
+  const obj = props as Record<string, unknown>;
+  const assetType = String(obj.eAssetType ?? "").toLowerCase();
+  const className = getStringValue(obj.className);
+  const source = getStringValue(obj.src) || getStringValue(obj.imageUrl);
+
+  if (className.includes("hero") || className.includes("capsule")) {
+    return false;
+  }
+
+  if (source.includes("library_hero") || source.includes("library_capsule")) {
+    return false;
+  }
+
+  if (assetType === "") {
+    return false;
+  }
+
+  for (const key of SIDEBAR_ICON_SIZE_KEYS) {
+    const size = toNumber(obj[key]);
+
+    if (size !== null && size > 64) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function insertSidebarBadge(
   originalJsx: JsxFn,
   children: unknown,
@@ -165,11 +165,6 @@ function insertSidebarBadge(
       return [badge, ...children];
     }
 
-    if (slot === "betweenIconAndTitle") {
-      const [firstChild, ...restChildren] = children;
-      return [firstChild, badge, ...restChildren];
-    }
-
     return [...children, badge];
   }
 
@@ -180,38 +175,6 @@ function insertSidebarBadge(
   return slot === "beforeIcon" ? [badge, children] : [children, badge];
 }
 
-function patchPropsForVisibleSidebarWrapper(
-  originalJsx: JsxFn,
-  props: unknown
-): unknown {
-  if (!isSidebarVisibleWrapperProps(props)) {
-    return props;
-  }
-
-  const appid = getAppIdFromProps(props);
-
-  if (!appid) {
-    return props;
-  }
-
-  markLibraryContextObserved();
-
-  const settings = readSettings();
-  const slot = settings.compatibilityMode ? "afterTitle" : settings.badgePosition;
-  const obj = props as Record<string, unknown>;
-  const existingClassName =
-    typeof obj.className === "string" ? obj.className : "";
-
-  return {
-    ...obj,
-    className: `${existingClassName} library-iq-sidebar-host library-iq-sidebar-host-${slot}`.trim(),
-    children:
-      slot === "afterTitle"
-        ? insertSidebarBadge(originalJsx, obj.children, appid, slot)
-        : obj.children
-  };
-}
-
 function LibraryIqIconRatingSlot({
   icon,
   appid
@@ -220,31 +183,62 @@ function LibraryIqIconRatingSlot({
   appid: string;
 }) {
   const [settings] = useLibraryIqSettings();
+  const [isInLibraryRow, setIsInLibraryRow] = useState(false);
+  const wrapperRef = useRef<HTMLElement | null>(null);
+  const effectiveBadgePosition = getThemeSafeSidebarBadgePosition(
+    settings.badgePosition
+  );
   const iconWidth = 24;
-  const iconBadgeGap = 7;
+  const iconBadgeGap = 2;
+
+  function setWrapperRef(element: HTMLElement | null) {
+    wrapperRef.current = element;
+  }
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const inLibraryRow = Boolean(wrapper?.closest(".library-iq-sidebar-host"));
+
+    setIsInLibraryRow(inLibraryRow);
+
+    if (!inLibraryRow) {
+      debugLogOnce(
+        `icon-slot-outside-library-${appid}`,
+        "sidebarPatch",
+        "suppressed icon badge outside confirmed Library row",
+        { appid }
+      );
+    }
+  }, [appid]);
 
   if (
+    !isInLibraryRow ||
     !settings.showRatings ||
     settings.compatibilityMode ||
-    settings.badgePosition === "afterTitle"
+    effectiveBadgePosition === "afterTitle"
   ) {
-    return <>{icon}</>;
+    return (
+      <span ref={setWrapperRef} style={{ display: "contents" }}>
+        {icon}
+      </span>
+    );
   }
 
   const badgeWidth = getBadgeWidth(settings.badgeDisplayMode);
   const numericBadgeWidth = Number.parseInt(badgeWidth, 10) || 40;
 
-  if (settings.badgePosition === "beforeIcon") {
-    const wrapperWidth = numericBadgeWidth + settings.badgeTitleSpacing + iconWidth;
+  if (effectiveBadgePosition === "beforeIcon") {
+    const wrapperWidth = numericBadgeWidth + iconBadgeGap + iconWidth;
 
     return (
       <div
+        ref={setWrapperRef}
         className="library-iq-icon-rating-wrap"
         style={
           {
             "--library-iq-icon-rating-width": `${wrapperWidth}px`,
-            "--library-iq-icon-badge-gap": "0px",
-            "--library-iq-icon-rating-margin-right": "10px",
+            "--library-iq-icon-badge-gap": `${iconBadgeGap}px`,
+            "--library-iq-icon-rating-margin-right": "4px",
             "--library-iq-badge-title-spacing": "0px",
             display: "inline-flex",
             alignItems: "center",
@@ -253,8 +247,8 @@ function LibraryIqIconRatingSlot({
             minWidth: `${wrapperWidth}px`,
             maxWidth: `${wrapperWidth}px`,
             flex: `0 0 ${wrapperWidth}px`,
-            gap: "0px",
-            marginRight: "10px",
+            gap: `${iconBadgeGap}px`,
+            marginRight: "4px",
             paddingRight: "0px",
             boxSizing: "border-box",
             overflow: "visible",
@@ -273,6 +267,7 @@ function LibraryIqIconRatingSlot({
 
   return (
     <div
+      ref={setWrapperRef}
       className="library-iq-icon-rating-wrap"
       style={
         {
@@ -309,11 +304,14 @@ function maybeWrapSidebarIcon(
   key?: unknown
 ): unknown | null {
   const settings = readSettings();
+  const effectiveBadgePosition = getThemeSafeSidebarBadgePosition(
+    settings.badgePosition
+  );
 
   if (
     !settings.showRatings ||
     settings.compatibilityMode ||
-    settings.badgePosition === "afterTitle" ||
+    effectiveBadgePosition === "afterTitle" ||
     !isLikelySidebarIconAssetProps(props)
   ) {
     return null;
@@ -324,8 +322,6 @@ function maybeWrapSidebarIcon(
   if (!appid) {
     return null;
   }
-
-  markLibraryContextObserved();
 
   const icon = originalJsx(type, props, key) as ReactNode;
 
@@ -339,18 +335,62 @@ function maybeWrapSidebarIcon(
   );
 }
 
+function patchPropsForVisibleSidebarWrapper(
+  originalJsx: JsxFn,
+  props: unknown
+): unknown {
+  if (!isSidebarVisibleWrapperProps(props)) {
+    return props;
+  }
+
+  const appid = getAppIdFromProps(props);
+
+  if (!appid) {
+    return props;
+  }
+
+  markLibraryContextObserved();
+  debugLogOnce("sidebar-wrapper-observed", "sidebarPatch", "observed Library sidebar wrapper", {
+    appid,
+    className: (props as Record<string, unknown>).className
+  });
+
+  const settings = readSettings();
+  const slot = getThemeSafeSidebarBadgePosition(
+    settings.compatibilityMode ? "afterTitle" : settings.badgePosition
+  );
+  const obj = props as Record<string, unknown>;
+  const existingClassName =
+    typeof obj.className === "string" ? obj.className : "";
+  const themeClassName = isMinimalDarkActive()
+    ? " library-iq-theme-minimal-dark"
+    : "";
+
+  return {
+    ...obj,
+    className: `${existingClassName} library-iq-sidebar-host library-iq-sidebar-host-${slot}${themeClassName}`.trim(),
+    children:
+      slot === "afterTitle"
+        ? insertSidebarBadge(originalJsx, obj.children, appid, slot)
+        : obj.children
+  };
+}
+
 export function installSidebarRatingPatch(): string {
+  ensureThemeCompatibilityLoaded();
   installSidebarStyles();
 
   const req = getWebpackRequire();
 
   if (!req) {
+    debugLog("sidebarPatch", "failed to capture webpack require");
     return "failed to capture webpack require";
   }
 
   const found = findJsxRuntime(req);
 
   if (!found) {
+    debugLog("sidebarPatch", "jsx runtime not found");
     return "jsx runtime not found";
   }
 
@@ -451,6 +491,10 @@ export function installSidebarRatingPatch(): string {
   found.runtime.jsxs = patchedJsxs;
 
   installed = true;
+
+  debugLog("sidebarPatch", wasInstalled ? "reinstalled JSX runtime patch" : "installed JSX runtime patch", {
+    moduleId: found.moduleId
+  });
 
   return wasInstalled
     ? `reinstalled via JSX module ${found.moduleId}`

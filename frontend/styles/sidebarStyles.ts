@@ -99,21 +99,116 @@ export function installSidebarStyles() {
 
     .library-iq-sidebar-host-afterTitle {
       position: relative !important;
-      padding-right: 52px !important;
+      padding-right: 0 !important;
+    }
+
+    .library-iq-sidebar-host-afterTitle.library-iq-theme-minimal-dark {
+      display: flex !important;
+      align-items: center !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+      padding-right: calc(var(--library-iq-badge-width, 40px) + 12px) !important;
+    }
+
+    .library-iq-theme-minimal-dark-active .library-iq-sidebar-host-afterTitle {
+      position: relative !important;
+      display: flex !important;
+      align-items: center !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+      padding-right: calc(var(--library-iq-badge-width, 40px) + 12px) !important;
     }
 
     .library-iq-sidebar-host-afterTitle > :not(.library-iq-rating-badge-afterTitle) {
       min-width: 0 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
     }
 
     .library-iq-sidebar-host-afterTitle > .library-iq-rating-badge-afterTitle {
+      position: relative !important;
+      flex: 0 0 var(--library-iq-badge-width, 40px) !important;
+      right: auto !important;
+      top: auto !important;
+      margin-left: auto !important;
+      margin-right: 0 !important;
+      transform: none !important;
+      z-index: 2 !important;
+    }
+
+    .library-iq-sidebar-host-afterTitle.library-iq-theme-minimal-dark > .library-iq-rating-badge-afterTitle {
       position: absolute !important;
       right: 4px !important;
       top: 50% !important;
       margin-left: 0 !important;
       margin-right: 0 !important;
       transform: translateY(-50%) !important;
-      z-index: 2 !important;
+      z-index: 3 !important;
+    }
+
+    .library-iq-theme-minimal-dark-active .library-iq-sidebar-host-afterTitle > .library-iq-rating-badge-afterTitle {
+      position: absolute !important;
+      right: 4px !important;
+      left: auto !important;
+      top: 50% !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      transform: translateY(-50%) !important;
+      z-index: 3 !important;
+    }
+
+    .library-iq-theme-minimal-dark-active .library-iq-sidebar-host-afterTitle .library-iq-rating-badge-afterTitle {
+      position: absolute !important;
+      right: 4px !important;
+      left: auto !important;
+      top: 50% !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      transform: translateY(-50%) !important;
+      z-index: 3 !important;
+    }
+
+    .library-iq-theme-minimal-dark-active .library-iq-minimal-dark-after-title-row {
+      position: relative !important;
+      box-sizing: border-box !important;
+      padding-right: calc(var(--library-iq-badge-width, 40px) + 12px) !important;
+    }
+
+    .library-iq-theme-minimal-dark-active .library-iq-minimal-dark-after-title-row .library-iq-sidebar-host-afterTitle {
+      padding-right: calc(var(--library-iq-badge-width, 40px) + 12px) !important;
+    }
+
+    .library-iq-theme-minimal-dark-active .library-iq-minimal-dark-after-title-row > .library-iq-rating-badge-afterTitle {
+      position: absolute !important;
+      right: 6px !important;
+      left: auto !important;
+      top: 50% !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      transform: translateY(-50%) !important;
+      z-index: 5 !important;
+    }
+
+    .library-iq-theme-minimal-dark-active .library-iq-minimal-dark-after-title-row > .library-iq-rating-badge-placeholder {
+      display: none !important;
+    }
+
+    .library-iq-theme-minimal-dark-active [data-library-iq-quick-filter] {
+      position: fixed !important;
+      z-index: 2147483647 !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      isolation: isolate !important;
+      transform: translateZ(0) !important;
+      filter: none !important;
+    }
+
+    .library-iq-theme-minimal-dark-active [data-library-iq-quick-filter] button {
+      background: rgba(42, 71, 94, 0.98) !important;
+      border: 1px solid rgba(102, 192, 244, 0.75) !important;
+      color: rgba(255, 255, 255, 0.98) !important;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.65) !important;
     }
   `;
 

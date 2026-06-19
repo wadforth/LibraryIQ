@@ -5,6 +5,72 @@ local json = require("json")
 
 local cache = {}
 
+local function get_config_path()
+    local steam_path = os.getenv("SteamPath") or "C:\\Program Files (x86)\\Steam"
+
+    return steam_path .. "\\millennium\\config\\config.json"
+end
+
+local function read_active_theme()
+    local file = io.open(get_config_path(), "r")
+
+    if file == nil then
+        return ""
+    end
+
+    local body = file:read("*a") or ""
+    file:close()
+
+    local ok, config = pcall(json.decode, body)
+
+    if not ok or type(config) ~= "table" then
+        return ""
+    end
+
+    local themes = config.themes
+
+    if type(themes) ~= "table" or type(themes.activeTheme) ~= "string" then
+        return ""
+    end
+
+    return themes.activeTheme
+end
+
+local function read_active_theme_repo(active_theme)
+    if active_theme == "" then
+        return ""
+    end
+
+    local steam_path = os.getenv("SteamPath") or "C:\\Program Files (x86)\\Steam"
+    local metadata_path = steam_path .. "\\millennium\\themes\\" .. active_theme .. "\\metadata.json"
+    local file = io.open(metadata_path, "r")
+
+    if file == nil then
+        return ""
+    end
+
+    local body = file:read("*a") or ""
+    file:close()
+
+    local ok, metadata = pcall(json.decode, body)
+
+    if not ok or type(metadata) ~= "table" or type(metadata.repo) ~= "string" then
+        return ""
+    end
+
+    return metadata.repo
+end
+
+local function get_active_theme_js_literal()
+    local ok, encoded = pcall(json.encode, read_active_theme())
+
+    if ok and type(encoded) == "string" then
+        return encoded
+    end
+
+    return [[""]]
+end
+
 local function encode_response(payload)
     local ok, encoded = pcall(json.encode, payload)
 
@@ -76,7 +142,7 @@ function get_steam_rating(params)
             ["Accept"] = "application/json"
         },
         timeout = 10,
-        user_agent = "LibraryIQ-Millennium/0.2.4"
+        user_agent = "LibraryIQ-Millennium/0.2.5"
     })
 
     if not res then
@@ -115,6 +181,16 @@ function test_rating()
     })
 end
 
+function get_active_theme()
+    local active_theme = read_active_theme()
+
+    return encode_response({
+        ok = true,
+        activeTheme = active_theme,
+        activeThemeRepo = read_active_theme_repo(active_theme)
+    })
+end
+
 local function on_load()
     logger:info("Steam Ratings backend loaded")
     millennium.ready()
@@ -128,12 +204,15 @@ local function on_frontend_loaded()
     logger:info("Steam Ratings frontend loaded")
 end
 
+local active_theme_js_literal = get_active_theme_js_literal()
+
 return {
     on_load = on_load,
     on_unload = on_unload,
     on_frontend_loaded = on_frontend_loaded,
 
     get_steam_rating = get_steam_rating,
+    get_active_theme = get_active_theme,
     test_rating = test_rating,
 
     patches = {
@@ -143,7 +222,7 @@ return {
             transforms = {
                 {
                     match = [[\(0,(\w+\.jsx)\)\((\w+\.SteamLogo)]],
-                    replace = [[(0,\1)(#{{self}}?.steamRatingsLibrary?.().SteamRatingsLibraryInjector||(()=>null),{}),(0,\1)(\2]]
+                    replace = [[(window.__LIBRARYIQ_ACTIVE_THEME__=]] .. active_theme_js_literal .. [[,(0,\1)(#{{self}}?.steamRatingsLibrary?.().SteamRatingsLibraryInjector||(()=>null),{})),(0,\1)(\2]]
                 }
             }
         }

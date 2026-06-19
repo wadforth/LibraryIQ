@@ -223,7 +223,13 @@ function forceSteamLibraryListRefresh() {
 }
 
 export function writeSettings(settings: LibraryIqSettings) {
+  const previousSettings = readSettings();
   const normalizedSettings = normalizeSettings(settings);
+  const changedKeys = Object.keys(normalizedSettings).filter((key) => {
+    const settingKey = key as keyof LibraryIqSettings;
+
+    return normalizedSettings[settingKey] !== previousSettings[settingKey];
+  });
 
   localStorage.setItem(
     SETTINGS_STORAGE_KEY,
@@ -233,7 +239,12 @@ export function writeSettings(settings: LibraryIqSettings) {
     new CustomEvent(SETTINGS_EVENT, { detail: normalizedSettings })
   );
 
-  forceSteamLibraryListRefresh();
+  if (
+    changedKeys.includes("minimumRating") ||
+    changedKeys.includes("ratingSortMode")
+  ) {
+    forceSteamLibraryListRefresh();
+  }
 }
 
 export function useLibraryIqSettings() {

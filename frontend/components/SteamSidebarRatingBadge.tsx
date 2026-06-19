@@ -4,6 +4,9 @@ import { useLibraryIqSettings } from "../hooks/useLibraryIqSettings";
 import { fetchRating } from "../services/ratings";
 import { getInternalRating } from "../services/steamAppStore";
 import {
+  getThemeSafeSidebarBadgePosition
+} from "../services/themeCompatibility";
+import {
   getBadgeBorderRadius,
   getBadgeVisualStyle,
   getBadgeWidth
@@ -116,6 +119,9 @@ export function SteamSidebarRatingBadge({
 }) {
   const [settings] = useLibraryIqSettings();
   const [isHovered, setIsHovered] = useState(false);
+  const effectiveBadgePosition = getThemeSafeSidebarBadgePosition(
+    settings.compatibilityMode ? "afterTitle" : settings.badgePosition
+  );
 
   const [rating, setRating] = useState<SteamRatingResponse | null>(() =>
     getFallbackDisplayRating(appid, settings)
@@ -143,10 +149,6 @@ export function SteamSidebarRatingBadge({
       cancelled = true;
     };
   }, [appid, settings.showRatings, settings.ratingSource]);
-
-  const effectiveBadgePosition = settings.compatibilityMode
-    ? "afterTitle"
-    : settings.badgePosition;
 
   if (!settings.showRatings || effectiveBadgePosition !== slot) {
     return null;
@@ -187,6 +189,7 @@ export function SteamSidebarRatingBadge({
   }
 
   const displayRating = rating as SteamRatingResponse;
+  const label = getLabel(displayRating, settings);
   const clickUrl = getClickUrl(appid, settings);
   const visualStyle = getBadgeVisualStyle(
     displayRating.positive_percent ?? 0,
@@ -218,7 +221,7 @@ export function SteamSidebarRatingBadge({
     window.open(clickUrl, "_blank", "noopener,noreferrer");
   }
 
-  return (
+  const badgeElement = (
     <div
       className={`library-iq-rating-badge library-iq-rating-badge-${slot}`}
       onClick={handleClick}
@@ -280,7 +283,9 @@ export function SteamSidebarRatingBadge({
           : undefined
       }
     >
-      {getLabel(displayRating, settings)}
+      {label}
     </div>
   );
+
+  return badgeElement;
 }

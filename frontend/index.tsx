@@ -2,6 +2,7 @@ import { Millennium, definePlugin } from "@steambrew/client";
 import { Component, type ReactNode, useEffect } from "react";
 import { LibraryIqSettingsPanel } from "./components/LibraryIqSettingsPanel";
 import { QuickFilterBar } from "./components/QuickFilterBar";
+import { debugLog, debugLogOnce } from "./services/debug";
 import { installSidebarRatingPatch } from "./steam/sidebarPatch";
 
 class QuickFilterErrorBoundary extends Component<
@@ -37,8 +38,20 @@ class QuickFilterErrorBoundary extends Component<
 
 function SteamRatingsLibraryInjector() {
   useEffect(() => {
+    debugLog("injector", "mounted", {
+      href: window.location.href,
+      bodyClassName: document.body?.className ?? ""
+    });
+
     const ensurePatchInstalled = () => {
       const status = installSidebarRatingPatch();
+
+      debugLogOnce(
+        `install-status-${status}`,
+        "injector",
+        "installSidebarRatingPatch status",
+        { status }
+      );
 
       if (status.startsWith("reinstalled")) {
         console.info("[LibraryIQ]", status);
